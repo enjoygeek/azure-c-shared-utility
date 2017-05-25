@@ -481,11 +481,11 @@ ELSE()
 ENDIF(WIN32)
 
 #this is the product (a library)
-if(${build_as_dynamic})
-    add_library(aziotsharedutil SHARED ./src/aziotsharedutil.def ${source_c_files} ${source_h_files})
-else()
-    add_library(aziotsharedutil ${source_c_files} ${source_h_files})
-endif()
+add_library(aziotsharedutil ${source_c_files} ${source_h_files})
+
+#make sure we can link as dll/so
+add_library(aziotsharedutil_dll SHARED ./src/aziotsharedutil.def ${source_c_files} ${source_h_files})
+set_target_properties(aziotsharedutil_dll PROPERTIES OUTPUT_NAME "aziotsharedutil")
 
 if(${use_http})
     if(WIN32)
@@ -595,7 +595,7 @@ if(${use_installed_dependencies})
     # Install Azure C Shared Utility
     set(package_location "cmake")
 
-    install (TARGETS aziotsharedutil EXPORT aziotsharedutilTargets
+    install (TARGETS aziotsharedutil aziotsharedutil_dll EXPORT aziotsharedutilTargets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR}/../bin
