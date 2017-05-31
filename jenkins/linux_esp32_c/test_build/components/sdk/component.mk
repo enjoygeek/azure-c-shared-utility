@@ -1,11 +1,11 @@
 #
 # Component Makefile
 #
-all:;echo frog
+
 # Component configuration in preprocessor defines
 CFLAGS += -DUSE_LWIP_SOCKET_FOR_AZURE_IOT 
 
-sdk := ../../../..
+sdk := ../../../../../..
 
 #COMPONENT_ADD_INCLUDEDIRS := $(sdk)/iothub_client/inc $(sdk)/c-utility/inc $(sdk)/uamqp/inc 
 
@@ -77,14 +77,15 @@ $(sdk)/c-utility/adapters/sntp_lwip.o	\
 $(sdk)/c-utility/adapters/dns_async.o	\
 $(sdk)/c-utility/adapters/socket_async.o	\
 $(sdk)/c-utility/adapters/tlsio_openssl_compact.o	\
+$(sdk)/iothub_client/samples/iothub_client_sample_mqtt/iothub_client_sample_mqtt.o	\
 
 
 COMPONENT_SRCDIRS :=  \
 $(sdk)/c-utility/src \
 $(sdk)/c-utility/adapters  \
-$(sdk)/c-utility/adapters/bad-adapters  \
 $(sdk)/umqtt/src	\
 $(sdk)/iothub_client/src  \
+$(sdk)/iothub_client/samples/iothub_client_sample_mqtt  \
 $(sdk)/parson	\
 
 
