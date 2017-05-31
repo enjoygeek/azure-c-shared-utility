@@ -27,18 +27,18 @@ Extract:
 https://dl.espressif.com/dl/xtensa-esp32-elf-linux64-1.22.0-61-gab8375a-5.2.0.tar.gz
 Into /home/jenkins/esp32: 
 
-`mkdir -p /home/jenkins/esp`
+`mkdir -p /home/jenkins/esp32`
 
-`cd /home/jenkins/esp`
+`cd /home/jenkins/esp32`
 
 `tar -xzf ~/Downloads/xtensa-esp32-elf-linux64-1.22.0-61-gab8375a-5.2.0.tar.gz`
 
 ##### Create an export for the toolchain location:<br/>
-`export ESP32_TOOLS="/home/jenkins/esp"`
+`export ESP32_TOOLS="/home/jenkins/esp32"`
 
 ##### Install the ESP32 SDK:
 
-`cd /home/jenkins`
+`cd /home/jenkins` 
 
 `git clone –recursive  https://github.com/espressif/esp-idf/tree/972d1d9242bad8b2c09840794dd143c1d5ad75da esp32-idf`
 
