@@ -7,10 +7,6 @@ CFLAGS += -DUSE_LWIP_SOCKET_FOR_AZURE_IOT
 
 sdk := ../../../../../..
 
-#COMPONENT_ADD_INCLUDEDIRS := $(sdk)/iothub_client/inc $(sdk)/c-utility/inc $(sdk)/uamqp/inc 
-
-#COMPONENT_SRCDIRS := $(sdk)/iothub_client/src $(sdk)/c-utility/src $(sdk)/uamqp/src
-
 COMPONENT_ADD_INCLUDEDIRS :=  \
 $(sdk)/c-utility/inc  \
 $(sdk)/c-utility/inc/azure_c_shared_utility \
@@ -18,7 +14,8 @@ $(sdk)/c-utility/inc/azure_c_shared_utility/lwip \
 $(sdk)/iothub_client/inc \
 $(sdk)/umqtt/inc  \
 $(sdk)/umqtt/inc/azure_umqtt_c 	\
-$(sdk)/parson
+$(sdk)/parson  \
+$(sdk)/iothub_client/samples/iothub_client_sample_mqtt
 
 COMPONENT_OBJS =  \
 $(sdk)/c-utility/src/xlogging.o	\

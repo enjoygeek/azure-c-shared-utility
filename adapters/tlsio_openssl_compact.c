@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "azure_c_shared_utility/gballoc.h"
+#include "azure_c_shared_utility/tlsio_openssl_compact.h"
 #include "azure_c_shared_utility/tlsio.h"
 #include "azure_c_shared_utility/xlogging.h"
 #include "azure_c_shared_utility/agenttime.h"
@@ -942,7 +943,7 @@ static const IO_INTERFACE_DESCRIPTION tlsio_openssl_interface_description =
 };
 
 /* Codes_SRS_TLSIO_30_001: [ The tlsio_openssl_compact shall implement and export all the Concrete functions in the VTable IO_INTERFACE_DESCRIPTION defined in the xio.h. ]*/
-const IO_INTERFACE_DESCRIPTION* tlsio_get_interface_description(void)
+const IO_INTERFACE_DESCRIPTION* tlsio_openssl_compact_get_interface_description(void)
 {
 	return &tlsio_openssl_interface_description;
 }

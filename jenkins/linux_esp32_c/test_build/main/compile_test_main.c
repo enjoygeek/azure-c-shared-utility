@@ -14,7 +14,7 @@
 #include "esp_log.h"
 
 #include "nvs_flash.h"
-//#include "iothub_client_sample_mqtt.h"
+#include "iothub_client_sample_mqtt.h"
 
 
 
@@ -23,8 +23,8 @@
 
 void app_main()
 {
-    //nvs_flash_init();
-    //initialise_wifi();
-    //xTaskCreate(&azure_task, "azure_task", 8192, NULL, 5, NULL);
+	// This code will not run and is just here to test compile and link
+	iothub_client_sample_mqtt_run();
+
 	printf("goodbye");
 }
