@@ -6,5 +6,7 @@ dir /home/jenkins
 dir /home/jenkins/esp32
 dir /home/jenkins/esp32-idf
 
+cd /home/jenkins/esp32-idf
+git status
 
 
