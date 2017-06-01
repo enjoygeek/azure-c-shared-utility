@@ -4,6 +4,7 @@ echo "hello esp32"
 
  export PATH=$ESP32_TOOLS:$PATH
  pwd
+ dir
  #cd test_build
  #make
 
