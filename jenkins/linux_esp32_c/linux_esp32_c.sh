@@ -17,4 +17,6 @@ echo "hello esp32"
 # git checkout 53893297299e207029679dc99b7fb33151bdd415
 # git rev-parse HEAD
 
+echo "version 01"
+
 
