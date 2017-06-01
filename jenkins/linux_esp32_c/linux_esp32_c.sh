@@ -3,8 +3,9 @@ echo "hello esp32"
  printenv
 
  export PATH=$ESP32_TOOLS:$PATH
- cd test_build
- make
+ pwd
+ #cd test_build
+ #make
 
 # dir /home/jenkins
 # dir /home/jenkins/esp32
