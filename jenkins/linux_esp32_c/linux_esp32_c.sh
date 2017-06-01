@@ -4,7 +4,6 @@ export PATH=$PATH:$ESP32_TOOLS
 
 # Verify that the ESP32 SDK is at a tested commit
 pushd $IDF_PATH
-git rev-parse HEAD
 idf_commit=$(git rev-parse HEAD)
 tested_idf_commit=53893297299e207029679dc99b7fb33151bdd415
 popd
@@ -17,11 +16,10 @@ else
 	exit 1
 fi
 
-pwd
 cd c-utility/jenkins/linux_esp32_c/test_build
-dir
-#make
+pwd
+make
 
-echo "version 02"
+echo "version 03"
 
 
