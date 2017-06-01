@@ -40,8 +40,12 @@ Into /home/jenkins/esp32:
 
 `cd /home/jenkins` 
 
-`git clone –recursive  https://github.com/espressif/esp-idf/tree/972d1d9242bad8b2c09840794dd143c1d5ad75da esp32-idf`
+`git clone --recursive https://github.com/espressif/esp-idf.git esp32-idf`
+
+`git checkout  972d1d9242bad8b2c09840794dd143c1d5ad75da`
 
 ##### Export the ESP32 SDK location:
 
 `export IDF_PATH="/home/jenkins/esp32-idf"`
+
+git clone --recursive https://github.com/espressif/esp-idf.git esp32-idf
