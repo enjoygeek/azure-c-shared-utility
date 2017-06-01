@@ -1,6 +1,8 @@
 echo "hello esp32"
-echo $IDF_PATH
-printenv
 dir /home/jenkins
+dir /home/jenkins/esp32
+# dir /home/jenkins/esp32-idf
+
+ printenv
 
 
