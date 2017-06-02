@@ -1,6 +1,6 @@
 echo "Cross-compiling a non-working ESP32 example"
 
-export PATH=$PATH:$ESP32_TOOLS/xtensa-esp32-elf/bin
+export PATH=$PATH:$ESP32_TOOLS/xtensa-esp32-elf/binxx
 
 # Verify that the ESP32 SDK is at a tested commit
 pushd $IDF_PATH
@@ -17,9 +17,13 @@ else
 fi
 
 cd c-utility/jenkins/linux_esp32_c/test_build
-pwd
+echo "building in" $(pwd)
 make
-
-echo "version 03"
+if [ $? = 0 ]
+	then echo "built okay"
+else 
+	echo "!!!FAILED!!! build failed"
+	exit result
+fi
 
 
