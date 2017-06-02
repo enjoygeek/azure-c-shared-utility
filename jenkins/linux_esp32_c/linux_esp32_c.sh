@@ -1,6 +1,6 @@
 echo "Cross-compiling a non-working ESP32 example"
 
-export PATH=$PATH:$ESP32_TOOLS
+export PATH=$PATH:$ESP32_TOOLS/xtensa-esp32-elf/bin
 
 # Verify that the ESP32 SDK is at a tested commit
 pushd $IDF_PATH
