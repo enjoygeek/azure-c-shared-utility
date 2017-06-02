@@ -83,6 +83,7 @@ static const char* allocate_fail_message = "malloc failed";
 
 static void enter_tlsio_error_state(TLS_IO_INSTANCE* tls_io_instance)
 {
+    Frog();
 	if (tls_io_instance->tlsio_state != TLSIO_STATE_ERROR)
 	{
 		tls_io_instance->tlsio_state = TLSIO_STATE_ERROR;
