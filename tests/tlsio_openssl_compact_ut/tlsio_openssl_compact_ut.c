@@ -33,7 +33,6 @@
  * These are the headers that contains the functions that you will replace to execute the test.
  */
 #define ENABLE_MOCKS
-#include "azure_c_shared_utility/agenttime.h"
 #include "azure_c_shared_utility/gballoc.h"
 #include "azure_c_shared_utility/dns_async.h"
 #include "azure_c_shared_utility/socket_async.h"
@@ -121,8 +120,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         {
             ASSERT_FAIL("Bad size_t size");
         }
-
-        REGISTER_GLOBAL_MOCK_RETURNS(get_time, TIMEOUT_START_TIME, TIMEOUT_END_TIME_TIMEOUT);
 
         REGISTER_GLOBAL_MOCK_RETURNS(dns_async_create, GOOD_DNS_ASYNC_HANDLE, NULL);
         REGISTER_GLOBAL_MOCK_RETURNS(dns_async_is_lookup_complete, true, false);
@@ -489,7 +486,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_dns (waiting)
         STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE)).SetReturn(false);
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_dns (done)
         STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE));
@@ -499,7 +495,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_socket (waiting)
         STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_false, sizeof_bool);
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_socket (done)
         STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_true, sizeof_bool);
@@ -510,12 +505,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_READ)
         STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_ERROR__plus__WANT_READ);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, SSL_ERROR__plus__WANT_READ));
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_WRITE)
         STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_ERROR__plus__WANT_WRITE);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, SSL_ERROR__plus__WANT_WRITE));
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_open_ssl (done)
 
@@ -705,47 +698,11 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
+        // Send two messages, one to fail and one that should be ignored by the dowork
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
-        reset_callback_context_records();
-        umock_c_reset_all_calls();
-
-        // Force a failed read
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL)).SetReturn(TIMEOUT_END_TIME_TIMEOUT);
-        tlsio_id->concrete_io_dowork(tlsio);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 0);
-
-        reset_callback_context_records();
-        umock_c_reset_all_calls();
-
-        ///act
-        tlsio_id->concrete_io_dowork(tlsio);
-
-        ///assert
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 0);
-		ASSERT_NO_CALLBACKS();
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-
-        ///cleanup
-        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
-        tlsio_id->concrete_io_destroy(tlsio);
-		assert_gballoc_checks();
-	}
-
-	/* Tests_SRS_TLSIO_30_002: [ The phrase "destroy the failed message" means that the adapter shall remove the message from the queue and destroy it after calling the message's on_send_complete along with its associated callback_context and IO_SEND_ERROR. ]*/
-	/* Tests_SRS_TLSIO_30_005: [ When the adapter enters TLSIO_STATE_EXT_ERROR it shall call the  on_io_error function and pass the on_io_error_context that were supplied in  tlsio_open . ]*/
-	/* Tests_SRS_TLSIO_30_092: [ If the send process for any given message takes longer than the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS it shall destroy the failed message and enter TLSIO_STATE_EX_ERROR. ]*/
-	/* Tests_SRS_TLSIO_30_003: [ Tlsio adapter implementations shall define and observe the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS timeout value for opening, closing, and sending processes. ]*/
-	TEST_FUNCTION(tlsio_openssl_compact__dowork_send_timeout__fails)
-    {
-        ///arrange
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-        open_helper(tlsio_id, tlsio);
-
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
@@ -753,19 +710,27 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL)).SetReturn(TIMEOUT_END_TIME_TIMEOUT);
+        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
+        STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 1);
 
-        ///act
         tlsio_id->concrete_io_dowork(tlsio);
 
-        ///assert
         ASSERT_IO_SEND_CALLBACK(true, IO_SEND_ERROR);
         ASSERT_IO_ERROR_CALLBACK(true);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 0);
+        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 1);
+
+        reset_callback_context_records();
+        umock_c_reset_all_calls();
+
+        ///act
+        tlsio_id->concrete_io_dowork(tlsio);
+
+        ///assert
+		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 1);
+		ASSERT_NO_CALLBACKS();
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         ///cleanup
@@ -792,7 +757,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL)).SetReturn(0);
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -830,11 +794,9 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL));
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_TEST_MESSAGE_SIZE));
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL));
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_TEST_MESSAGE_SIZE - SSL_WRITE_MAX_TEST_SIZE));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -872,7 +834,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(get_time(NULL));
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -1025,7 +986,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 
     /* Tests_SRS_TLSIO_30_082: [ If the connection process fails for any reason, tlsio_dowork shall log an error, call on_io_open_complete with the on_io_open_complete_context parameter provided in tlsio_open and IO_OPEN_ERROR, and enter TLSIO_STATE_EX_ERROR. ]*/
-    /* Tests_SRS_TLSIO_30_081: [ If the connection process takes longer than the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS, tlsio_dowork shall log an error, call on_io_open_complete with the on_io_open_complete_context parameter provided in tlsio_open and IO_OPEN_ERROR, and enter TLSIO_STATE_EX_ERROR. ]*/
 	/* Tests_SRS_TLSIO_30_003: [ Tlsio adapter implementations shall define and observe the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS timeout value for opening, closing, and sending processes. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_open_unhappy_paths__fails)
     {
@@ -1038,7 +998,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_dns (waiting)
         fails[k++] = false; STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE)).SetReturn(false);
-        fails[k++] = true; STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_dns (done)
         fails[k++] = false; STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE));
@@ -1048,7 +1007,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_socket (waiting)
         fails[k++] = false; STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_false, sizeof_bool);
-        fails[k++] = true; STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_socket (done)
         fails[k++] = false; STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_true, sizeof_bool);
@@ -1059,7 +1017,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // dowork_poll_open_ssl (timeout)
         fails[k++] = false; STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_ERROR__plus__WANT_READ);
         fails[k++] = false; STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, SSL_ERROR__plus__WANT_READ));
-        fails[k++] = true; STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_open_ssl (hard failure)
         fails[k++] = true; STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr));
@@ -1123,7 +1080,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_dns (waiting)
         STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE)).SetReturn(false);
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_dns (done)
         STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE));
@@ -1133,7 +1089,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // dowork_poll_socket (waiting)
         STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_false, sizeof_bool);
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_socket (done)
         STRICT_EXPECTED_CALL(socket_async_is_create_complete(SSL_Good_Socket, IGNORED_PTR_ARG)).CopyOutArgumentBuffer_is_complete(&bool_true, sizeof_bool);
@@ -1144,12 +1099,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_READ)
         STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_ERROR__plus__WANT_READ);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, SSL_ERROR__plus__WANT_READ));
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_WRITE)
         STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_ERROR__plus__WANT_WRITE);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, SSL_ERROR__plus__WANT_WRITE));
-        STRICT_EXPECTED_CALL(get_time(NULL));
 
         // dowork_poll_open_ssl (done)
         STRICT_EXPECTED_CALL(SSL_connect(SSL_Good_Ptr)).SetReturn(SSL_CONNECT_SUCCESS);
@@ -1225,7 +1178,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		umock_c_reset_all_calls();
 		reset_callback_context_records();
 
-		STRICT_EXPECTED_CALL(get_time(NULL));
 		STRICT_EXPECTED_CALL(dns_async_create(IGNORED_PTR_ARG, NULL));
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
@@ -1256,7 +1208,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		umock_c_reset_all_calls();
 		reset_callback_context_records();
 
-		STRICT_EXPECTED_CALL(get_time(NULL));
 		STRICT_EXPECTED_CALL(dns_async_create(IGNORED_PTR_ARG, NULL)).SetReturn(NULL);
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 

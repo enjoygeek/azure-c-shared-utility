@@ -74,27 +74,6 @@ int port;
 } TLSIO_CONFIG;
 ```
 
-
-**SRS_TLSIO_30_003: [** Tlsio adapter implementations shall define and observe the internally defined `TLSIO_OPERATION_TIMEOUT_SECONDS` timeout value for opening, closing, and sending processes:
- ```c
-// This value is considered an emergency limit rather than a useful tuning parameter,
-// so it is not adjustable via the more expensive get / set options system
-#ifndef TLSIO_OPERATION_TIMEOUT_SECONDS
-#define TLSIO_OPERATION_TIMEOUT_SECONDS 40
-#endif // !TLSIO_OPERATION_TIMEOUT_SECONDS
- ```
-**]**
-
-**SRS_TLSIO_30_004: [** If the tlsio implementation uses an internal buffer to pass data into the `on_bytes_received` callback, it shall define the size of this buffer with the internally defined `TLSIO_RECEIVE_BUFFER_SIZE` value.
-  ```c
-// The TLSIO_RECEIVE_BUFFER_SIZE has very little effect on performance, and is kept small
-// to minimize memory consumption.
-#ifndef TLSIO_RECEIVE_BUFFER_SIZE
-#define TLSIO_RECEIVE_BUFFER_SIZE 64
-#endif // !TLSIO_RECEIVE_BUFFER_SIZE
-  ```
-**]**
-
 ## External State
 The external state of the tlsio adapter is determined by which of the adapter's interface functions have been called and which callbacks have been performed. The adapter's internal state should map cleanly to its external state, but the mapping is not necessarily 1:1. The external states are defined as follows:
 
@@ -130,7 +109,7 @@ This list shows the effect of the calls as a function of state with happy intern
 </table>
 
 <table>
-  <tr>From state <b>TLSIO_STATE_EXT_OPENING</b> (guaranteed to exit by timeout)</tr>
+  <tr>From state <b>TLSIO_STATE_EXT_OPENING</b></tr>
   <tr>
     <td>tlsio_destroy</td>
     <td>log error, force immediate close, destroy (destroyed)</td>
@@ -170,7 +149,7 @@ This list shows the effect of the calls as a function of state with happy intern
 </table>
 
 <table>
-  <tr>From state <b>TLSIO_STATE_EXT_CLOSING</b> (guaranteed to exit by timeout)</tr>
+  <tr>From state <b>TLSIO_STATE_EXT_CLOSING</b></tr>
   <tr>
     <td>tlsio_destroy</td>
     <td>log error, force immediate close, destroy (destroyed)</td>
@@ -439,8 +418,6 @@ Transitioning from TLSIO_STATE_EXT_OPENING to TLSIO_STATE_EXT_OPEN may require m
 
 **SRS_TLSIO_30_080: [** The `tlsio_dowork` shall establish a TLS connection using the `hostName` and `port` provided during `tlsio_open_async`. **]**
 
-**SRS_TLSIO_30_081: [** If the connection process takes longer than the internally defined `TLSIO_OPERATION_TIMEOUT_SECONDS`, `tlsio_dowork`  shall log an error, call `on_io_open_complete` with the `on_io_open_complete_context` parameter provided in `tlsio_open_async` and `IO_OPEN_ERROR`, and  [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
-
 **SRS_TLSIO_30_082: [** If the connection process fails for any reason, `tlsio_dowork`  shall log an error, call `on_io_open_complete` with the `on_io_open_complete_context` parameter provided in `tlsio_open_async` and `IO_OPEN_ERROR`, and [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
 **SRS_TLSIO_30_083: [** If `tlsio_dowork` successfully opens the TLS connection it shall [enter TLSIO_STATE_EX_OPEN](#enter-TLSIO_STATE_EXT_OPEN "Call the `on_io_open_complete` function and pass IO_OPEN_OK and the `on_io_open_complete_context` that was supplied in `tlsio_open_async`."). **]**
@@ -450,8 +427,6 @@ Transitioning from TLSIO_STATE_EXT_OPENING to TLSIO_STATE_EXT_OPEN may require m
 **SRS_TLSIO_30_091: [** If `tlsio_dowork` is able to send all the bytes in an enqueued message, it shall call the messages's `on_send_complete` along with its associated `callback_context` and `IO_SEND_OK`. **]**
 
 **SRS_TLSIO_30_093: [** If the TLS connection was not able to send an entire enqueued message at once, subsequent calls to `tlsio_dowork` shall continue to send the remaining bytes. **]**
-
-**SRS_TLSIO_30_092: [** If the send process for any given message takes longer than the internally defined `TLSIO_OPERATION_TIMEOUT_SECONDS`, `tlsio_dowork` shall [destroy the failed message](#destroy-the-failed-message "Remove the message from the queue and destroy it after calling the message's `on_send_complete` along with its associated `callback_context` and `IO_SEND_ERROR`.") and [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
 **SRS_TLSIO_30_095: [** If the send process fails before sending all of the bytes in an enqueued message, `tlsio_dowork` shall [destroy the failed message](#destroy-the-failed-message "Remove the message from the queue and destroy it after calling the message's `on_send_complete` along with its associated `callback_context` and `IO_SEND_ERROR`.") and [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
@@ -466,8 +441,6 @@ Transitioning from TLSIO_STATE_EXT_OPENING to TLSIO_STATE_EXT_OPEN may require m
 #### TLSIO_STATE_EXT_CLOSING behaviors
 
 Adapters whose underlying TLS connection does not have an asynchronous 'closing' state will not have an externally visible TLSIO_STATE_EXT_CLOSING state and so their `tlsio_dowork` will not perform these behaviors.
-
-**SRS_TLSIO_30_105: [** If the closing process takes longer than the internally defined `TLSIO_OPERATION_TIMEOUT_SECONDS`, `tlsio_dowork` shall [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
 **SRS_TLSIO_30_106: [** If the closing process fails, `tlsio_dowork` shall [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
