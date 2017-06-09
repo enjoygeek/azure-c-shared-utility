@@ -89,6 +89,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     TEST_SUITE_INITIALIZE(a)
     {
         int result;
+        size_t type_size;
         TEST_INITIALIZE_MEMORY_DEBUG(g_dllByDll);
         g_testByTest = TEST_MUTEX_CREATE();
         ASSERT_IS_NOT_NULL(g_testByTest);
@@ -107,7 +108,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         REGISTER_UMOCK_ALIAS_TYPE(SOCKET_ASYNC_OPTIONS_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(SOCKET_ASYNC_HANDLE, int);
         REGISTER_UMOCK_ALIAS_TYPE(DNS_ASYNC_HANDLE, void*);
-        size_t type_size = sizeof(time_t);
+        type_size = sizeof(time_t);
         if (type_size == sizeof(uint64_t))
         {
             REGISTER_UMOCK_ALIAS_TYPE(time_t, uint64_t);
@@ -150,8 +151,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
     static void use_negative_mocks()
     {
-        negative_mocks_used = true;
         int negativeTestsInitResult = umock_c_negative_tests_init();
+        negative_mocks_used = true;
         ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
     }
 
@@ -199,8 +200,9 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
     static void open_helper(const IO_INTERFACE_DESCRIPTION* tlsio_id, CONCRETE_IO_HANDLE tlsio)
     {
+        int open_result;
         reset_callback_context_records();
-        int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
 
@@ -215,14 +217,16 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_201: [ The "high-level retry sequence" shall succeed after an injected fault which causes on_io_error to be called. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__retry_open_after_io_failure__succeeds)
     {
+        int send_result;
+        int open_result;
         ///arrange
-        reset_callback_context_records();
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        reset_callback_context_records();
         open_helper(tlsio_id, tlsio);
 
         // Send the message to eventually fail on
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_FAIL_ME_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, 0, send_result);
 
@@ -237,7 +241,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ASSERT_IO_CLOSE_CALLBACK(true);
 
         // Retry the open
-        int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
 
@@ -314,6 +318,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_054: [ On failure, the adapter shall not call on_io_close_complete. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__close_parameter_validation__fails)
     {
+        int k;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -324,18 +329,19 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ON_IO_CLOSE_COMPLETE p1[CLOSE_PV_COUNT];
         const char* fm[CLOSE_PV_COUNT];
 
-        int k = 0;
+        k = 0;
         p0[k] = false; p1[k] = on_io_close_complete; fm[k] = "Unexpected close success when tlsio_handle is NULL"; /* */  k++;
         p0[k] = true; p1[k] = NULL; /*           */ fm[k] = "Unexpected close success when on_io_close_complete is NULL"; k++;
 
         // Cycle through each failing combo of parameters
         for (int i = 0; i < CLOSE_PV_COUNT; i++)
         {
+            int close_result;
             reset_callback_context_records();
             ///arrange
 
             ///act
-            int close_result = tlsio_id->concrete_io_close(p0[i] ? tlsio : NULL, p1[i], IO_CLOSE_COMPLETE_CONTEXT);
+            close_result = tlsio_id->concrete_io_close(p0[i] ? tlsio : NULL, p1[i], IO_CLOSE_COMPLETE_CONTEXT);
 
             ///assert
 			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
@@ -353,6 +359,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	TEST_FUNCTION(tlsio_openssl_compact__close_with_unsent_messages__succeeds)
     {
         ///arrange
+        int send_result;
+        int close_result;
         reset_callback_context_records();
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -361,7 +369,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Make sure the arrangement is correct
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
 
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
         send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
@@ -386,7 +394,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // End of arrange
 
         ///act
-		int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
+		close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
 		ASSERT_ARE_EQUAL(int, 0, close_result);
@@ -404,16 +412,19 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SSRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__close_while_closed__succeeds)
     {
+        const IO_INTERFACE_DESCRIPTION* tlsio_id;
+        CONCRETE_IO_HANDLE tlsio;
+        int close_result;
         ///arrange
         reset_callback_context_records();
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        tlsio_id = tlsio_openssl_compact_get_interface_description();
+        tlsio = tlsio_id->concrete_io_create(&good_config);
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_OK);
         umock_c_reset_all_calls();
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
-		int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
+		close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
 		ASSERT_ARE_EQUAL(int, 0, close_result);
@@ -434,10 +445,11 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	// For this case, tlsio_openssl_compact_open has been called previously
     TEST_FUNCTION(tlsio_openssl_compact__close_after_open__succeeds)
     {
+        int close_result;
         ///arrange
-        reset_callback_context_records();
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        reset_callback_context_records();
         open_helper(tlsio_id, tlsio);
 
         // Make sure the arrangement is correct
@@ -452,7 +464,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		// End of arrange
 
         ///act
-        int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
+        close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
 		ASSERT_ARE_EQUAL(int, 0, close_result);
@@ -469,11 +481,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SSRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__close_while_opening__succeeds)
     {
+        int open_result;
+        const IO_INTERFACE_DESCRIPTION* tlsio_id;
+        CONCRETE_IO_HANDLE tlsio;
         ///arrange
         reset_callback_context_records();
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-        int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        tlsio_id = tlsio_openssl_compact_get_interface_description();
+        tlsio = tlsio_id->concrete_io_create(&good_config);
+        open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
@@ -543,6 +558,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_063: [ The tlsio_openssl_compact_send shall enqueue for transmission the on_send_complete, the callback_context, the size, and the contents of buffer. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__send__succeeds)
 	{
+        int send_result;
 		///arrange
 		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -556,7 +572,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
 		///act
-		int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
 			SSL_send_message_size, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 
 		///assert
@@ -583,6 +599,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 		for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
 		{
+            int send_result;
 			///arrange
 			const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 			CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -596,7 +613,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
 			///act
-			int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+			send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
 				SSL_send_message_size, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 
 			///assert
@@ -620,19 +637,20 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_066: [ On failure, on_send_complete shall not be called. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__send_parameter_validation__fails)
 	{
-		///arrange
-		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-		open_helper(tlsio_id, tlsio);
-
 		// Parameters arrays
 		bool p0[SEND_PV_COUNT];
 		const void* p1[SEND_PV_COUNT];
 		size_t p2[SEND_PV_COUNT];
 		ON_SEND_COMPLETE p3[SEND_PV_COUNT];
 		const char* fm[SEND_PV_COUNT];
+        int k;
 
-		int k = 0;
+		///arrange
+		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
+		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+		open_helper(tlsio_id, tlsio);
+
+		k = 0;
 		p0[k] = false; p1[k] = SSL_send_buffer; p2[k] = SSL_send_message_size; p3[k] = on_io_send_complete; fm[k] = "Unexpected send success when tlsio_handle is NULL"; k++;
 		p0[k] = true; p1[k] = NULL; /*       */ p2[k] = SSL_send_message_size; p3[k] = on_io_send_complete; fm[k] = "Unexpected send success when send buffer is NULL"; k++;
 		p0[k] = true; p1[k] = SSL_send_buffer; p2[k] = 0; /*                */ p3[k] = on_io_send_complete; fm[k] = "Unexpected send success when size is 0"; k++;
@@ -641,11 +659,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		// Cycle through each failing combo of parameters
 		for (int i = 0; i < SEND_PV_COUNT; i++)
 		{
+            int send_result;
 			///arrange
 			reset_callback_context_records();
 
 			///act
-			int send_result = tlsio_id->concrete_io_send(p0[i] ? tlsio : NULL, p1[i], p2[i], p3[i], IO_SEND_COMPLETE_CONTEXT);
+			send_result = tlsio_id->concrete_io_send(p0[i] ? tlsio : NULL, p1[i], p2[i], p3[i], IO_SEND_COMPLETE_CONTEXT);
 
 			///assert
 			ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, send_result, 0, fm[i]);
@@ -665,6 +684,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_066: [ On failure, on_send_complete shall not be called. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__send_not_open__fails)
 	{
+        int send_result;
 		///arrange
 		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -672,7 +692,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
-		int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
 			SSL_send_message_size, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 
 		///assert
@@ -688,13 +708,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_071: [ If the adapter is in TLSIO_STATE_EXT_ERROR then tlsio_dowork shall do nothing. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__dowork_send_post_error_do_nothing__succeeds)
     {
+        int send_result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
         // Send two messages, one to fail and one that should be ignored by the dowork
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
         send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
@@ -740,12 +761,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_095: [ If the send process fails before sending all of the bytes in an enqueued message, tlsio_dowork shall destroy the failed message and enter TLSIO_STATE_EX_ERROR. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__dowork_send_unhappy_path__fails)
     {
+        int send_result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
@@ -778,12 +800,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_093: [ If the TLS connection was not able to send an entire enqueued message at once, subsequent calls to tlsio_dowork shall continue to send the remaining bytes. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__dowork_send_big_message__succeeds)
     {
+        int send_result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_TEST_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
@@ -819,12 +842,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_091: [ If tlsio_openssl_compact_dowork is able to send all the bytes in an enqueued message, it shall call the messages's on_send_complete along with its associated callback_context and IO_SEND_OK. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__dowork_send__succeeds)
     {
+        int send_result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
-        int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+        send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
@@ -978,12 +1002,15 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_075: [ If the adapter is in TLSIO_STATE_EXT_CLOSED then tlsio_dowork shall do nothing. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_post_close__succeeds)
     {
+        const IO_INTERFACE_DESCRIPTION* tlsio_id;
+        CONCRETE_IO_HANDLE tlsio;
+        int open_result;
         ///arrange
         // Create
         reset_callback_context_records();
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-        int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        tlsio_id = tlsio_openssl_compact_get_interface_description();
+        tlsio = tlsio_id->concrete_io_create(&good_config);
+        open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
@@ -1021,11 +1048,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_003: [ Tlsio adapter implementations shall define and observe the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS timeout value for opening, closing, and sending processes. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_open_unhappy_paths__fails)
     {
+        int k;
+        bool fails[100];
         ///arrange
         use_negative_mocks();
 
-        bool fails[100];
-        int k = 0;
+        k = 0;
 
 
         // dowork_poll_dns (waiting)
@@ -1057,10 +1085,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
         {
+            const IO_INTERFACE_DESCRIPTION* tlsio_id;
+            CONCRETE_IO_HANDLE tlsio;
+            int open_result;
             reset_callback_context_records();
-            const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-            CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-            int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+            tlsio_id = tlsio_openssl_compact_get_interface_description();
+            tlsio = tlsio_id->concrete_io_create(&good_config);
+            open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
                 IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
             ASSERT_ARE_EQUAL(int, open_result, 0);
             ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
@@ -1100,11 +1131,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_083: [ If tlsio_dowork successfully opens the TLS connection it shall enter TLSIO_STATE_EX_OPEN. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_open__succeeds)
     {
+        const IO_INTERFACE_DESCRIPTION* tlsio_id;
+        CONCRETE_IO_HANDLE tlsio;
+        int open_result;
         ///arrange
         reset_callback_context_records();
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-        int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        tlsio_id = tlsio_openssl_compact_get_interface_description();
+        tlsio = tlsio_id->concrete_io_create(&good_config);
+        open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
@@ -1204,6 +1238,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_034: [ The tlsio_open shall store the provided on_bytes_received, on_bytes_received_context, on_io_error, on_io_error_context, on_io_open_complete, and on_io_open_complete_context parameters for later use as specified and tested per other line entries in this document. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__open__succeeds)
 	{
+        int open_result;
 		///arrange
 		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -1214,7 +1249,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
-		int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+		open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
 			IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
 
 		///assert
@@ -1234,6 +1269,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_039: [ On failure, tlsio_open_async shall not call on_io_open_complete. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__open_unhappy_path__fails)
 	{
+        int open_result;
 		///arrange
 		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -1244,7 +1280,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
-		int open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+		open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
 			IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
 
 		///assert
@@ -1263,6 +1299,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_039: [ On failure, tlsio_open_async shall not call on_io_open_complete. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__open_wrong_state__fails)
     {
+        int open_result_2;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -1273,7 +1310,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
         ///act
-        int open_result_2 = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
+        open_result_2 = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
 
         ///assert
@@ -1312,13 +1349,15 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Cycle through each failing combo of parameters
         for (int i = 0; i < OPEN_PV_COUNT; i++)
         {
+            CONCRETE_IO_HANDLE tlsio;
+            int open_result;
             ///arrange
             reset_callback_context_records();
-            CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+            tlsio = tlsio_id->concrete_io_create(&good_config);
 			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///act
-            int open_result = tlsio_id->concrete_io_open(p0[i] ? tlsio : NULL, p1[i], IO_OPEN_COMPLETE_CONTEXT, p2[i],
+            open_result = tlsio_id->concrete_io_open(p0[i] ? tlsio : NULL, p1[i], IO_OPEN_COMPLETE_CONTEXT, p2[i],
                 IO_BYTES_RECEIVED_CONTEXT, p3[i], IO_ERROR_CONTEXT);
 
             ///assert
@@ -1335,6 +1374,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_OPENSSL_COMPACT_30_520 [ The  tlsio_setoption  shall do nothing and return 0. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__setoption__succeeds)
     {
+        int result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -1343,7 +1383,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
-        int result = tlsio_id->concrete_io_setoption(tlsio, "fake name", "fake value");
+        result = tlsio_id->concrete_io_setoption(tlsio, "fake name", "fake value");
 
         ///assert
         ASSERT_ARE_EQUAL(int, 0, result);
@@ -1359,17 +1399,18 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_122: [ If the value parameter is NULL, tlsio_openssl_compact_setoption shall do nothing except log an error and return FAILURE. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__setoption_parameter_validation__fails)
     {
-        ///arrange
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        umock_c_reset_all_calls();
-
+        int k;
         // Parameters arrays
         bool p0[SETOPTION_PV_COUNT];
         const char* p1[SETOPTION_PV_COUNT];
         const char*  p2[SETOPTION_PV_COUNT];
         const char* fm[SETOPTION_PV_COUNT];
 
-        int k = 0;
+        ///arrange
+        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
+        umock_c_reset_all_calls();
+
+        k = 0;
         p0[k] = false; p1[k] = "fake name"; p2[k] = "fake value"; fm[k] = "Unexpected setoption success when tlsio_handle is NULL"; /* */  k++;
         p0[k] = true; p1[k] = NULL; /*   */ p2[k] = "fake value"; fm[k] = "Unexpected setoption success when option_name is NULL"; /*  */  k++;
         p0[k] = true; p1[k] = "fake name"; p2[k] = NULL; /*    */ fm[k] = "Unexpected setoption success when option_value is NULL"; /* */  k++;
@@ -1378,13 +1419,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Cycle through each failing combo of parameters
         for (int i = 0; i < SETOPTION_PV_COUNT; i++)
         {
+            int result;
             ///arrange
             CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
             ASSERT_IS_NOT_NULL(tlsio);
 			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///act
-            int result = tlsio_id->concrete_io_setoption(p0[i] ? tlsio : NULL, p1[i], p2[i]);
+            result = tlsio_id->concrete_io_setoption(p0[i] ? tlsio : NULL, p1[i], p2[i]);
 
             ///assert
             ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, 0, result, fm[i]);
@@ -1476,11 +1518,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
         {
+            CONCRETE_IO_HANDLE result;
             umock_c_negative_tests_reset();
             umock_c_negative_tests_fail_call(i);
 
             ///act
-            CONCRETE_IO_HANDLE result = tlsio_id->concrete_io_create(&good_config);
+            result = tlsio_id->concrete_io_create(&good_config);
 
             ///assert
             ASSERT_IS_NULL(result);
@@ -1495,6 +1538,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_012: [ The tlsio_create shall receive the connection configuration as a TLSIO_CONFIG* in io_create_parameters. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__create__succeeds)
     {
+        CONCRETE_IO_HANDLE result;
         ///arrange
         const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
 
@@ -1504,7 +1548,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         //
 
         ///act
-        CONCRETE_IO_HANDLE result = tlsio_id->concrete_io_create(&good_config);
+        result = tlsio_id->concrete_io_create(&good_config);
 
         ///assert
         ASSERT_IS_NOT_NULL(result);
@@ -1520,16 +1564,19 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	/* Tests_SRS_TLSIO_30_022: [ If the adapter is in any state other than TLSIO_STATE_EX_CLOSED when tlsio_destroy is called, the adapter shall enter TLSIO_STATE_EX_CLOSING and then enter TLSIO_STATE_EX_CLOSED before completing the destroy process. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__destroy_with_unsent_messages__succeeds)
 	{
+        const IO_INTERFACE_DESCRIPTION* tlsio_id;
+        CONCRETE_IO_HANDLE tlsio;
+        int send_result;
 		///arrange
 		reset_callback_context_records();
-		const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+		tlsio_id = tlsio_openssl_compact_get_interface_description();
+		tlsio = tlsio_id->concrete_io_create(&good_config);
 		open_helper(tlsio_id, tlsio);
 
 		// Make sure the arrangement is correct
 		ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
 
-		int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
+		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
 			SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 		ASSERT_ARE_EQUAL(int, send_result, 0);
 		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,

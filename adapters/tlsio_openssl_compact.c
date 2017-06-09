@@ -255,6 +255,7 @@ static CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
                 }
                 else
                 {
+                    int ms_result;
                     memset(result, 0, sizeof(TLS_IO_INSTANCE));
                     result->port = (uint16_t)tls_io_config->port;
                     result->tlsio_state = TLSIO_STATE_CLOSED;
@@ -263,7 +264,7 @@ static CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
                     result->dns = NULL;
                     result->pending_transmission_list = NULL;
                     /* Codes_SRS_TLSIO_30_016: [ tlsio_create shall make a copy of the hostname member of io_create_parameters to allow deletion of hostname immediately after the call. ]*/
-                    int ms_result = mallocAndStrcpy_s(&result->hostname, tls_io_config->hostname);
+                    ms_result = mallocAndStrcpy_s(&result->hostname, tls_io_config->hostname);
                     if (ms_result != 0)
                     {
                         /* Codes_SRS_TLSIO_30_011: [ If any resource allocation fails, tlsio_create shall return NULL. ]*/
