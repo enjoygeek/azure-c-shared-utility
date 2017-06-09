@@ -27,13 +27,6 @@ typedef struct
     void* callback_context;
 } PENDING_TRANSMISSION;
 
-/* Codes_SRS_TLSIO_30_003: [ Tlsio adapter implementations shall define and observe the internally defined  TLSIO_OPERATION_TIMEOUT_SECONDS  timeout value for opening, closing, and sending processes: ]*/
-// This value is considered an emergency limit rather than a useful tuning parameter,
-// so it is not adjustable via the more expensive get / set options system
-#ifndef TLSIO_OPERATION_TIMEOUT_SECONDS
-#define TLSIO_OPERATION_TIMEOUT_SECONDS 40
-#endif // !TLSIO_OPERATION_TIMEOUT_SECONDS
-
 #define MAX_VALID_PORT 0xffff
 
 // The TLSIO_RECEIVE_BUFFER_SIZE has very little effect on performance, and is kept small
@@ -193,14 +186,14 @@ static int is_hard_ssl_error(SSL* ssl, int callReturn)
 
 static void tlsio_openssl_destroy(CONCRETE_IO_HANDLE tls_io)
 {
-    TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
-    if (tls_io_instance == NULL)
+    if (tls_io == NULL)
     {
         /* Codes_SRS_TLSIO_30_020: [ If tlsio_handle is NULL, tlsio_destroy shall do nothing. ]*/
         LogError("NULL tlsio");
     }
     else
     {
+        TLS_IO_INSTANCE* tls_io_instance = (TLS_IO_INSTANCE*)tls_io;
         if (tls_io_instance->tlsio_state != TLSIO_STATE_CLOSED)
         {
             /* Codes_SRS_TLSIO_30_022: [ If the adapter is in any state other than TLSIO_STATE_EX_CLOSED when tlsio_destroy is called, the adapter shall enter TLSIO_STATE_EX_CLOSING and then enter TLSIO_STATE_EX_CLOSED before completing the destroy process. ]*/
@@ -408,19 +401,17 @@ static int tlsio_openssl_close_async(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMP
             if (tls_io_instance->tlsio_state != TLSIO_STATE_OPEN &&
                 tls_io_instance->tlsio_state != TLSIO_STATE_ERROR)
             {
-                /* Codes_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR tlsio_close_async shall log an error and return FAILURE. ]*/
-                LogError("tlsio_openssl_close has been called when in neither TLSIO_STATE_OPEN nor TLSIO_STATE_ERROR.");
-                result = __FAILURE__;
+                /* Codes_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+                // LogInfo rather than LogError because this is an unusual but not erroneous situation
+                LogInfo("tlsio_openssl_close has been called when in neither TLSIO_STATE_OPEN nor TLSIO_STATE_ERROR.");
             }
-            else
-            {
-                /* Codes_SRS_TLSIO_30_056: [ On success the adapter shall enter TLSIO_STATE_EX_CLOSING. ]*/
-                /* Codes_SRS_TLSIO_30_051: [ On success, if the underlying TLS does not support asynchronous closing, then the adapter shall enter TLSIO_STATE_EX_CLOSED immediately after entering TLSIO_STATE_EX_CLOSING. ]*/
-                /* Codes_SRS_TLSIO_30_052: [ On success tlsio_close shall return 0. ]*/
-                internal_close(tls_io_instance);
-                on_io_close_complete(callback_context);
-                result = 0;
-            }
+            // This adapter does not support asynchronous closing
+            /* Codes_SRS_TLSIO_30_056: [ On success the adapter shall enter TLSIO_STATE_EX_CLOSING. ]*/
+            /* Codes_SRS_TLSIO_30_051: [ On success, if the underlying TLS does not support asynchronous closing, then the adapter shall enter TLSIO_STATE_EX_CLOSED immediately after entering TLSIO_STATE_EX_CLOSING. ]*/
+            /* Codes_SRS_TLSIO_30_052: [ On success tlsio_close shall return 0. ]*/
+            internal_close(tls_io_instance);
+            on_io_close_complete(callback_context);
+            result = 0;
         }
     }
     /* Codes_SRS_TLSIO_30_054: [ On failure, the adapter shall not call on_io_close_complete. ]*/
@@ -538,18 +529,18 @@ static void dowork_read(TLS_IO_INSTANCE* tls_io_instance)
         // SSL_read is not checked for errors because the "no data" condition is reported as a 
         // failure, but the docs do not guarantee that it will always be the same failure,
         // so we have no reliable way to distinguish "no data" from something else.
+        //
+        // Pump all of the bytes currently available out
         rcv_bytes = SSL_read(tls_io_instance->ssl, buffer, sizeof(buffer));
-        if (rcv_bytes > 0)
+        while (rcv_bytes > 0)
         {
             // tls_io_instance->on_bytes_received was already checked for NULL
             // in the call to tlsio_openssl_open_async
-            /* Codes_SRS_TLSIO_30_100: [ If the TLS connection is able to provide received data, tlsio_dowork shall read this data and call on_bytes_received with the pointer to the buffer containing the data, the number of bytes received, and the on_bytes_received_context. ]*/
+            /* Codes_SRS_TLSIO_30_100: [ As long as the TLS connection is able to provide received data, tlsio_dowork shall repeatedly read this data and call on_bytes_received with the pointer to the buffer containing the data, the number of bytes received, and the on_bytes_received_context. ]*/
             tls_io_instance->on_bytes_received(tls_io_instance->on_bytes_received_context, buffer, rcv_bytes);
+            rcv_bytes = SSL_read(tls_io_instance->ssl, buffer, sizeof(buffer));
         }
-        else
-        {
-            /* Codes_SRS_TLSIO_30_102: [ If the TLS connection receives no data then tlsio_dowork shall not call the on_bytes_received callback. ]*/
-        }
+        /* Codes_SRS_TLSIO_30_102: [ If the TLS connection receives no data then tlsio_dowork shall not call the on_bytes_received callback. ]*/
     }
 }
 
@@ -748,7 +739,6 @@ static void dowork_poll_open_ssl(TLS_IO_INSTANCE* tls_io_instance)
         int hard_error = is_hard_ssl_error(tls_io_instance->ssl, connect_result);
         if (hard_error != 0)
         {
-            /* Codes_SRS_TLSIO_30_082: [ If the connection process fails for any reason, tlsio_dowork shall log an error, call on_io_open_complete with the on_io_open_complete_context parameter provided in tlsio_open and IO_OPEN_ERROR, and enter TLSIO_STATE_EX_ERROR. ]*/
             LogInfo("Hard error from SSL_connect: %d", hard_error);
             enter_open_error_state(tls_io_instance);
         }

@@ -99,10 +99,9 @@ static void on_bytes_received(void* context, const unsigned char* buffer, size_t
 {
     on_bytes_received_call_count++;
 
-    ASSERT_ARE_EQUAL(size_t, DOWORK_RECV_XFER_BUFFER_SIZE, size);
-    for (int i = 0; i < DOWORK_RECV_XFER_BUFFER_SIZE; i++)
+    for (size_t i = 0; i < size; i++)
     {
-        ASSERT_ARE_EQUAL(char, SSL_TEST_MESSAGE[i], buffer[i]);
+        ASSERT_BYTE_RECEIVED(buffer[i]);
     }
     if (context != IO_BYTES_RECEIVED_CONTEXT)
     {
@@ -180,11 +179,11 @@ static void ASSERT_IO_CLOSE_CALLBACK(bool called)
     }
 }
 
-static void ASSERT_BYTES_RECEIVED_CALLBACK(bool called)
+static void ASSERT_BYTES_RECEIVED_CALLBACK(bool called, size_t message_size)
 {
     if (called)
     {
-        ASSERT_ARE_EQUAL_WITH_MSG(int, 1, on_bytes_received_call_count, "bytes_received_callback count mismatch");
+        ASSERT_ARE_EQUAL_WITH_MSG(size_t, message_size, fake_read_bytes_received, "bytes_received count mismatch");
         ASSERT_IS_TRUE_WITH_MSG(on_bytes_received_context_ok, "bytes_received_context not passed");
     }
     else
@@ -199,7 +198,7 @@ static void ASSERT_NO_CALLBACKS()
     ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
     ASSERT_IO_SEND_CALLBACK(false, IO_SEND_ERROR);
     ASSERT_IO_CLOSE_CALLBACK(false);
-    ASSERT_BYTES_RECEIVED_CALLBACK(false);
+    ASSERT_BYTES_RECEIVED_CALLBACK(false, 0);
 }
 
 #endif // CALLBACKS_H

@@ -133,7 +133,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         REGISTER_GLOBAL_MOCK_RETURNS(SSL_set_fd, SSL_SET_FD_SUCCESS, SSL_SET_FD_FAILURE);
         REGISTER_GLOBAL_MOCK_RETURNS(SSL_connect, SSL_CONNECT_SUCCESS, SSL_ERROR__plus__HARD_FAIL);
         REGISTER_GLOBAL_MOCK_RETURNS(SSL_get_error, SSL_ERROR_WANT_READ, SSL_ERROR_HARD_FAIL);
-        REGISTER_GLOBAL_MOCK_RETURNS(SSL_read, DOWORK_RECV_XFER_BUFFER_SIZE, SSL_READ_NO_DATA);
         REGISTER_GLOBAL_MOCK_HOOK(SSL_write, my_SSL_write);
         REGISTER_GLOBAL_MOCK_HOOK(SSL_read, my_SSL_read);
         REGISTER_GLOBAL_MOCK_HOOK(SSL_get_error, my_SSL_get_error);
@@ -224,7 +223,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // Send the message to eventually fail on
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_FAIL_ME_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_FAIL_ME_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, 0, send_result);
 
         umock_c_reset_all_calls();
@@ -363,10 +362,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
 
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
         send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
 
@@ -402,10 +401,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		assert_gballoc_checks();
 	}
 
-    /* Tests_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR  tlsio_close  shall log an error and return FAILURE. ]*/
-    /* Tests_SRS_TLSIO_30_054: [ On failure, the adapter shall not call on_io_close_complete. ]*/
-    // For this case, tlsio_openssl_compact_open has not been called previously
-    TEST_FUNCTION(tlsio_openssl_compact__close_unopened__fails)
+    /* Tests_SSRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+    TEST_FUNCTION(tlsio_openssl_compact__close_while_closed__succeeds)
     {
         ///arrange
         reset_callback_context_records();
@@ -419,13 +416,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
-		ASSERT_ARE_NOT_EQUAL(int, 0, close_result);
-		ASSERT_IO_CLOSE_CALLBACK(false);
+		ASSERT_ARE_EQUAL(int, 0, close_result);
+		ASSERT_IO_CLOSE_CALLBACK(true);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
-        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
         tlsio_id->concrete_io_destroy(tlsio);
 		assert_gballoc_checks();
 	}
@@ -470,9 +466,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		assert_gballoc_checks();
 	}
 
-    /* Tests_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR tlsio_close shall log an error and return FAILURE. ]*/
-    /* Tests_SRS_TLSIO_30_054: [ On failure, the adapter shall not call on_io_close_complete. ]*/
-    TEST_FUNCTION(tlsio_openssl_compact__close_while_opening__fails)
+    /* Tests_SSRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+    TEST_FUNCTION(tlsio_openssl_compact__close_while_opening__succeeds)
     {
         ///arrange
         reset_callback_context_records();
@@ -534,10 +529,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
-		ASSERT_ARE_NOT_EQUAL(int, 0, close_result);
-		ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_CANCELLED);
-        ASSERT_IO_CLOSE_CALLBACK(false);
+		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
+		ASSERT_ARE_EQUAL(int, 0, close_result);
+		ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_OK);
+        ASSERT_IO_CLOSE_CALLBACK(true);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -700,17 +695,18 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // Send two messages, one to fail and one that should be ignored by the dowork
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
         send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
         reset_callback_context_records();
+        init_fake_read(0);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_SENT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -750,14 +746,15 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         open_helper(tlsio_id, tlsio);
 
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
+        init_fake_read(0);
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_SENT_MESSAGE_SIZE)).SetReturn(SSL_ERROR__plus__HARD_FAIL);
         STRICT_EXPECTED_CALL(SSL_get_error(SSL_Good_Ptr, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -790,13 +787,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             SSL_TEST_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
+        init_fake_read(0);
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_TEST_MESSAGE_SIZE));
 
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_TEST_MESSAGE_SIZE - SSL_WRITE_MAX_TEST_SIZE));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -827,14 +825,15 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         open_helper(tlsio_id, tlsio);
 
         int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-            SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+            SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
 
+        init_fake_read(0);
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_MESSAGE_SIZE));
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(SSL_write(SSL_Good_Ptr, IGNORED_PTR_ARG, SSL_SHORT_SENT_MESSAGE_SIZE));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
@@ -862,11 +861,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
+        init_fake_read(0);
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
         // We do expect an empty read when we call dowork
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///act
@@ -892,36 +892,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         open_helper(tlsio_id, tlsio);
 
-        reset_callback_context_records();
-        umock_c_reset_all_calls();
-
-        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).SetReturn(0);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
-
-        ///act
-        tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_dns (done)
-
-        ///assert
-        // Verify we got no callback for 0 bytes
-        ASSERT_BYTES_RECEIVED_CALLBACK(false);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
-
-        ///cleanup
-        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
-        tlsio_id->concrete_io_destroy(tlsio);
-		assert_gballoc_checks();
-	}
-
-    /* Tests_SRS_TLSIO_30_100: [ If the TLS connection is able to provide received data, tlsio_dowork shall read this data and call on_bytes_received with the pointer to the buffer containing the data, the number of bytes received, and the on_bytes_received_context. ]*/
-    TEST_FUNCTION(tlsio_openssl_compact__dowork_receive__succeeds)
-    {
-        ///arrange
-        // Create
-        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
-        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
-        open_helper(tlsio_id, tlsio);
-
+        init_fake_read(0);
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
@@ -932,8 +903,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_dns (done)
 
         ///assert
-        // Verify we got the bytes and their callback context
-        ASSERT_BYTES_RECEIVED_CALLBACK(true);
+        // Verify we got no callback for 0 bytes
+        ASSERT_BYTES_RECEIVED_CALLBACK(false, 0);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
@@ -942,6 +913,67 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_destroy(tlsio);
 		assert_gballoc_checks();
 	}
+
+    /* Tests_SRS_TLSIO_30_100: [ As long as the TLS connection is able to provide received data, tlsio_dowork shall repeatedly read this data and call on_bytes_received with the pointer to the buffer containing the data, the number of bytes received, and the on_bytes_received_context. ]*/
+    TEST_FUNCTION(tlsio_openssl_compact__dowork_receive_short_message__succeeds)
+    {
+        ///arrange
+        // Create
+        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
+        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        open_helper(tlsio_id, tlsio);
+
+        init_fake_read(SSL_SHORT_RECEIVED_MESSAGE_SIZE);
+        reset_callback_context_records();
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)); // Gets some data
+        STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)); // Gets zero bytes
+        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+
+        ///act
+        tlsio_id->concrete_io_dowork(tlsio);
+
+        ///assert
+        // Verify we got the bytes and their callback context
+        ASSERT_BYTES_RECEIVED_CALLBACK(true, SSL_SHORT_RECEIVED_MESSAGE_SIZE);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+
+        ///cleanup
+        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
+        tlsio_id->concrete_io_destroy(tlsio);
+        assert_gballoc_checks();
+    }
+
+    /* Tests_SRS_TLSIO_30_100: [ As long as the TLS connection is able to provide received data, tlsio_dowork shall repeatedly read this data and call on_bytes_received with the pointer to the buffer containing the data, the number of bytes received, and the on_bytes_received_context. ]*/
+    TEST_FUNCTION(tlsio_openssl_compact__dowork_receive_long_message__succeeds)
+    {
+        ///arrange
+        // Create
+        const IO_INTERFACE_DESCRIPTION* tlsio_id = tlsio_openssl_compact_get_interface_description();
+        CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        open_helper(tlsio_id, tlsio);
+
+        init_fake_read(SSL_LONG_RECEIVED_MESSAGE_SIZE);
+        reset_callback_context_records();
+        umock_c_reset_all_calls();
+
+        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+
+        ///act
+        tlsio_id->concrete_io_dowork(tlsio);
+
+        ///assert
+        // Verify we got the bytes and their callback context
+        ASSERT_BYTES_RECEIVED_CALLBACK(true, SSL_LONG_RECEIVED_MESSAGE_SIZE);
+        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+
+        ///cleanup
+        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
+        tlsio_id->concrete_io_destroy(tlsio);
+        assert_gballoc_checks();
+    }
 
 	/* Tests_SRS_TLSIO_30_075: [ If the adapter is in TLSIO_STATE_EXT_CLOSED then tlsio_dowork shall do nothing. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_post_close__succeeds)
@@ -1498,10 +1530,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
 
 		int send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-			SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+			SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 		ASSERT_ARE_EQUAL(int, send_result, 0);
 		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
-			SSL_SHORT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
+			SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
 		ASSERT_ARE_EQUAL(int, send_result, 0);
 
 

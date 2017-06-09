@@ -35,9 +35,14 @@ size_t SSL_send_message_size = sizeof(SSL_send_buffer) - 1;
 #define DOWORK_RECV_XFER_BUFFER_SIZE 64
 #define SSL_TEST_MESSAGE_SIZE 64
 #define SSL_WRITE_MAX_TEST_SIZE 60
-#define SSL_SHORT_MESSAGE_SIZE 30
-#define SSL_FAIL_ME_MESSAGE_SIZE 1700
-const char SSL_TEST_MESSAGE[] = "0000000000111111111122222222223333333333444444444455555555556789";
+#define SSL_SHORT_SENT_MESSAGE_SIZE 30
+#define SSL_FAIL_ME_SENT_MESSAGE_SIZE 1700
+#define SSL_SHORT_RECEIVED_MESSAGE_SIZE 15
+#define SSL_LONG_RECEIVED_MESSAGE_SIZE 1500
+
+static size_t fake_read_byte_out_count = 0;
+static size_t fake_read_current_byte_out_count = 0;
+static size_t fake_read_bytes_received = 0;
 
 
 // The fact that SSL_get_error requires the previous error allows a mocking strategy that
@@ -63,17 +68,31 @@ static int my_SSL_get_error(SSL* ssl, int callReturn)
     return 0;
 }
 
+static void init_fake_read(size_t byte_count)
+{
+    fake_read_byte_out_count = byte_count;
+    fake_read_current_byte_out_count = 0;
+    fake_read_bytes_received = 0;
+}
+
+static void ASSERT_BYTE_RECEIVED(uint8_t byte)
+{
+    ASSERT_ARE_EQUAL(size_t, (size_t)byte, (size_t)(fake_read_bytes_received % 256));
+    fake_read_bytes_received++;
+}
+
 int my_SSL_read(SSL* ssl, uint8_t* buffer, size_t size)
 {
     (void)size;
-    ASSERT_ARE_EQUAL(size_t, DOWORK_RECV_XFER_BUFFER_SIZE, size);
-    ASSERT_ARE_EQUAL(size_t, (int64_t)ssl, (size_t)SSL_Good_Ptr);
-    ASSERT_ARE_EQUAL(size_t, DOWORK_RECV_XFER_BUFFER_SIZE, sizeof(SSL_TEST_MESSAGE) - 1);
-    for (int i = 0; i < DOWORK_RECV_XFER_BUFFER_SIZE; i++)
+    ASSERT_ARE_EQUAL(size_t, (size_t)ssl, (size_t)SSL_Good_Ptr);
+    size_t bytes_to_receive = fake_read_byte_out_count - fake_read_current_byte_out_count;
+    bytes_to_receive = bytes_to_receive <= size ? bytes_to_receive : size;
+    for (size_t i = 0; i < bytes_to_receive; i++)
     {
-        buffer[i] = (uint8_t)SSL_TEST_MESSAGE[i];
+        buffer[i] = (uint8_t)(fake_read_current_byte_out_count % 256);
+        fake_read_current_byte_out_count++;
     }
-    return DOWORK_RECV_XFER_BUFFER_SIZE;
+    return (int)bytes_to_receive;
 }
 
 int my_SSL_write(SSL* ssl, uint8_t* buffer, size_t size)
@@ -82,7 +101,7 @@ int my_SSL_write(SSL* ssl, uint8_t* buffer, size_t size)
     (void)buffer; // not used
     ASSERT_ARE_EQUAL(size_t, (size_t)ssl, (size_t)SSL_Good_Ptr);
     int result;
-    if (size == SSL_FAIL_ME_MESSAGE_SIZE)
+    if (size == SSL_FAIL_ME_SENT_MESSAGE_SIZE)
     {
         result = SSL_ERROR__plus__HARD_FAIL;
     }
