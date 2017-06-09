@@ -23,11 +23,16 @@ interface and provide communication to remote systems over a TLS-conformant secu
 typedef OPTIONHANDLER_HANDLE (*IO_RETRIEVEOPTIONS)(CONCRETE_IO_HANDLE concrete_io);
 typedef CONCRETE_IO_HANDLE(*IO_CREATE)(void* io_create_parameters);
 typedef void(*IO_DESTROY)(CONCRETE_IO_HANDLE concrete_io);
-typedef int(*IO_OPEN)(CONCRETE_IO_HANDLE concrete_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context);
-typedef int(*IO_CLOSE)(CONCRETE_IO_HANDLE concrete_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context);
-typedef int(*IO_SEND)(CONCRETE_IO_HANDLE concrete_io, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* callback_context);
+typedef int(*IO_OPEN)(CONCRETE_IO_HANDLE concrete_io, ON_IO_OPEN_COMPLETE on_io_open_complete, 
+    void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, 
+    void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context);
+typedef int(*IO_CLOSE)(CONCRETE_IO_HANDLE concrete_io, ON_IO_CLOSE_COMPLETE on_io_close_complete,
+    void* callback_context);
+typedef int(*IO_SEND)(CONCRETE_IO_HANDLE concrete_io, const void* buffer, size_t size, 
+    ON_SEND_COMPLETE on_send_complete, void* callback_context);
 typedef void(*IO_DOWORK)(CONCRETE_IO_HANDLE concrete_io);
-typedef int(*IO_SETOPTION)(CONCRETE_IO_HANDLE concrete_io, const char* optionName, const void* value);
+typedef int(*IO_SETOPTION)(CONCRETE_IO_HANDLE concrete_io, const char* optionName, 
+    const void* value);
 
 
 typedef struct IO_INTERFACE_DESCRIPTION_TAG
@@ -304,7 +309,8 @@ int tlsio_open_async(
 ###   tlsio_close_async
 Implementation of `concrete_io_close`
 ```c
-int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context);
+int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle, 
+    ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context);
 ```
 
 **SRS_TLSIO_30_050: [** If the `tlsio_handle` parameter is NULL, `tlsio_close_async` shall log an error and return `_FAILURE_`. **]**
@@ -325,7 +331,8 @@ int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle, ON_IO_CLOSE_COMPLETE on_i
 ###   tlsio_send_async
 Implementation of `concrete_io_send`
 ```c
-int tlsio_send_async(CONCRETE_IO_HANDLE tlsio_handle, const void* buffer, size_t size, ON_SEND_COMPLETE on_send_complete, void* callback_context);
+int tlsio_send_async(CONCRETE_IO_HANDLE tlsio_handle, const void* buffer, 
+    size_t size, ON_SEND_COMPLETE on_send_complete, void* callback_context);
 ```
 
 **SRS_TLSIO_30_060: [** If the `tlsio_handle` parameter is NULL, `tlsio_send_async` shall log an error and return `_FAILURE_`. **]**
