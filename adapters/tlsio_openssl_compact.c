@@ -346,7 +346,7 @@ static int tlsio_openssl_open_async(CONCRETE_IO_HANDLE tls_io,
                         if (tls_io_instance->dns == NULL)
                         {
                             /* Codes_SRS_TLSIO_30_038: [ If tlsio_open fails to enter TLSIO_STATE_EX_OPENING it shall return FAILURE. ]*/
-                            // Error already logged
+                            LogError("dns_async_create failed");
                             result = __FAILURE__;
                         }
                         else
