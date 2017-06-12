@@ -3,6 +3,9 @@
 # license. See LICENSE file in the project root for full license 
 # information.
 # Tested on RPi2 debian verion 7.8
+
+set -e
+
 install_root="$HOME" 
 build_root=$(cd "$(dirname "$0")/.." && pwd) 
 cd $build_root

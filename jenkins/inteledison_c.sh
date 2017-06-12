@@ -4,6 +4,7 @@
 # information.
 
 # Tested on Ubuntu version 14.04
+set -e
 
 toolchain_root="/opt/poky-edison"
 install_root="$HOME" 
