@@ -319,7 +319,7 @@ int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle,
 
 **SRS_TLSIO_30_053: [** If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then `tlsio_close_async` shall log that `tlsio_close_async` has been called and then continue normally. **]**
 
-**SRS_TLSIO_30_052: [** On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call `on_io_open_complete` with the `on_io_open_complete_context` supplied in `tlsio_open_async` and `IO_OPEN_CANCELLED`. This callback shall be made before changing the internal state of the adapter. **]**
+**SRS_TLSIO_30_057: [** On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call `on_io_open_complete` with the `on_io_open_complete_context` supplied in `tlsio_open_async` and `IO_OPEN_CANCELLED`. This callback shall be made before changing the internal state of the adapter. **]**
 
 **SRS_TLSIO_30_056: [** On success the adapter shall [enter TLSIO_STATE_EX_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`."). **]**
 
