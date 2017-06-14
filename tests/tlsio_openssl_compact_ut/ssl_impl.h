@@ -119,4 +119,12 @@ int my_SSL_write(SSL* ssl, uint8_t* buffer, size_t size)
     return result;
 }
 
+/////////////////////////////////////////////////////////////////////
+//  Empty functions. These must be available to call, but they have no effect
+int TLSv1_2_client_method() { return 0; }
+void SSL_CTX_set_default_read_buffer_len(SSL_CTX* dummy, int dummy2) { (void)dummy; (void)dummy2; }
+
+// End of empty functions
+/////////////////////////////////////////////////////////////////////
+
 #endif // SSL_ERRORS_H

@@ -832,7 +832,7 @@ static int tlsio_openssl_setoption(CONCRETE_IO_HANDLE tls_io, const char* option
             }
             else
             {
-                /* Codes_SRS_TLSIO_OPENSSL_COMPACT_30_520 [ The  tlsio_setoption  shall do nothing and return 0. ]*/
+                /* Codes_SRS_TLSIO_OPENSSL_COMPACT_30_520 [ The tlsio_setoption shall do nothing and return 0. ]*/
                 result = 0;
             }
         }
@@ -876,7 +876,3 @@ const IO_INTERFACE_DESCRIPTION* tlsio_openssl_compact_get_interface_description(
 {
     return &tlsio_openssl_interface_description;
 }
-
-#ifdef TLSIO_STATE_VERIFICATION_ENABLE
-#include "unit_test_api_impl.h"
-#endif

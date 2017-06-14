@@ -60,9 +60,9 @@ static int my_socket_async_is_create_complete(SOCKET_ASYNC_HANDLE sock, bool* is
 #include "azure_c_shared_utility/tlsio_openssl_compact.h"
 #include "azure_c_shared_utility/xio.h"
 
+const IO_INTERFACE_DESCRIPTION* tlsio_id;
 // These "headers" are actually source files that are broken out of this file for readability
 //#include "unit_test_api.h"
-#define TLSIO_ASSERT_INTERNAL_STATE(a,b,c) 
 #include "ssl_impl.h"
 #include "callbacks.h"
 #include "test_defines.h"
@@ -83,7 +83,6 @@ static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 static TEST_MUTEX_HANDLE g_testByTest;
 static TEST_MUTEX_HANDLE g_dllByDll;
 static bool negative_mocks_used = false;
-const IO_INTERFACE_DESCRIPTION* tlsio_id;
 
 
 BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
@@ -251,7 +250,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_socket (done)
 
         reset_callback_context_records();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
         ///act
         // dowork_poll_open_ssl (done)
@@ -260,7 +258,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         // Check that we got the on_open callback for our retry
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -298,7 +295,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_dns (done)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_socket (done)
         reset_callback_context_records();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -306,7 +302,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         // Check that we got the on_open callback for our retry
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -344,7 +339,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             close_result = tlsio_id->concrete_io_close(p0[i] ? tlsio : NULL, p1[i], IO_CLOSE_COMPLETE_CONTEXT);
 
             ///assert
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
             ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, 0, close_result, fm[i]);
             ASSERT_IO_CLOSE_CALLBACK(false);
         }
@@ -389,7 +383,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 2);
+        reset_callback_context_records();
         // End of arrange
 
         ///act
@@ -397,8 +391,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         ///assert
 		ASSERT_ARE_EQUAL(int, 0, close_result);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
-		ASSERT_IO_SEND_ABANDONED(2); // 2 messages in this test
+        ASSERT_IO_CLOSE_CALLBACK(true);
+        ASSERT_IO_SEND_ABANDONED(2); // 2 messages in this test
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
 
@@ -419,7 +413,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio = tlsio_id->concrete_io_create(&good_config);
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_OK);
         umock_c_reset_all_calls();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
+        reset_callback_context_records();
 
         ///act
 		close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
@@ -428,7 +422,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		ASSERT_ARE_EQUAL(int, 0, close_result);
 		ASSERT_IO_CLOSE_CALLBACK(true);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -457,8 +450,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(SSL_free(SSL_Good_Ptr));
         STRICT_EXPECTED_CALL(SSL_CTX_free(SSL_Good_Context_Ptr));
         STRICT_EXPECTED_CALL(socket_async_destroy(SSL_Good_Socket));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
-		// End of arrange
+        reset_callback_context_records();
+        // End of arrange
 
         ///act
         close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
@@ -467,7 +460,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		ASSERT_ARE_EQUAL(int, 0, close_result);
 		ASSERT_IO_CLOSE_CALLBACK(true);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -533,14 +525,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(SSL_free(SSL_Good_Ptr));
         STRICT_EXPECTED_CALL(SSL_CTX_free(SSL_Good_Context_Ptr));
         STRICT_EXPECTED_CALL(socket_async_destroy(SSL_Good_Socket));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
-		// End of arrange
+        reset_callback_context_records();
+        // End of arrange
 
         ///act
         int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 		ASSERT_ARE_EQUAL(int, 0, close_result);
 		ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_CANCELLED);
         ASSERT_IO_CLOSE_CALLBACK(true);
@@ -564,7 +555,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // PENDING_SOCKET_IO
 		STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // message bytes
 		STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // singlylinkedlist_add
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
 		///act
 		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
@@ -572,7 +562,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 		///assert
 		ASSERT_ARE_EQUAL_WITH_MSG(int, send_result, 0, "Unexpected send failure");
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 1);
 
 		///cleanup
 		tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -604,7 +593,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 			umock_c_negative_tests_reset();
 			umock_c_negative_tests_fail_call(i);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
 			///act
 			send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
@@ -612,7 +600,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 			///assert
 			ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, send_result, 0, "Unexpected send success on unhappy path");
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
             ASSERT_IO_SEND_CALLBACK(false, IO_SEND_ERROR);
 
 			///cleanup
@@ -662,7 +649,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 			///assert
 			ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, send_result, 0, fm[i]);
 			ASSERT_IO_SEND_CALLBACK(false, IO_SEND_ERROR);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
 			///cleanup
 		}
@@ -681,7 +667,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		///arrange
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
 		reset_callback_context_records();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
 		send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
@@ -690,7 +675,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		///assert
 		ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, send_result, 0, "Unexpected success in sending from wrong state");
 		ASSERT_IO_SEND_CALLBACK(false, IO_SEND_ERROR);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///cleanup
 		tlsio_id->concrete_io_destroy(tlsio);
@@ -728,7 +712,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         ASSERT_IO_SEND_CALLBACK(true, IO_SEND_ERROR);
         ASSERT_IO_ERROR_CALLBACK(true);
-        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 1);
 
         reset_callback_context_records();
         umock_c_reset_all_calls();
@@ -737,7 +720,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_dowork(tlsio);
 
         ///assert
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 1);
 		ASSERT_NO_CALLBACKS();
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
@@ -778,7 +760,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_IO_SEND_CALLBACK(true, IO_SEND_ERROR);
         ASSERT_IO_ERROR_CALLBACK(true);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_ERROR, 0);
 		ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         ///cleanup
@@ -812,7 +793,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         tlsio_id->concrete_io_dowork(tlsio);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 1);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -820,7 +801,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_IO_SEND_CALLBACK(true, IO_SEND_OK);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -839,6 +820,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         send_result = tlsio_id->concrete_io_send(tlsio, SSL_send_buffer,
             SSL_SHORT_SENT_MESSAGE_SIZE, on_io_send_complete, IO_SEND_COMPLETE_CONTEXT);
         ASSERT_ARE_EQUAL(int, send_result, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         init_fake_read(0);
         reset_callback_context_records();
@@ -849,7 +831,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 1);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -857,7 +838,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_IO_SEND_CALLBACK(true, IO_SEND_OK);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -878,7 +859,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         // We do expect an empty read when we call dowork
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -887,7 +867,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Verify we got no callback for 0 messages
         ASSERT_IO_SEND_CALLBACK(false, IO_SEND_OK);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -907,7 +887,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_dns (done)
@@ -916,7 +895,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Verify we got no callback for 0 bytes
         ASSERT_BYTES_RECEIVED_CALLBACK(false, 0);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -938,7 +917,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)); // Gets some data
         STRICT_EXPECTED_CALL(SSL_read(SSL_Good_Ptr, IGNORED_PTR_ARG, IGNORED_NUM_ARG)); // Gets zero bytes
-        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -947,7 +925,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Verify we got the bytes and their callback context
         ASSERT_BYTES_RECEIVED_CALLBACK(true, SSL_SHORT_RECEIVED_MESSAGE_SIZE);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -967,15 +945,13 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         reset_callback_context_records();
         umock_c_reset_all_calls();
 
-        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
-
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
 
         ///assert
         // Verify we got the bytes and their callback context
         ASSERT_BYTES_RECEIVED_CALLBACK(true, SSL_LONG_RECEIVED_MESSAGE_SIZE);
-        TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
+        ASSERT_IO_ERROR_CALLBACK(false);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -1005,11 +981,10 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
 
         // close it
-        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
-
+        tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
+        ASSERT_IO_CLOSE_CALLBACK(true);
         reset_callback_context_records();
         umock_c_reset_all_calls();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_dns (done)
@@ -1018,7 +993,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Verify that the dowork did nothing
         ASSERT_NO_CALLBACKS();
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -1027,7 +1001,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 
     /* Tests_SRS_TLSIO_30_082: [ If the connection process fails for any reason, tlsio_dowork shall log an error, call on_io_open_complete with the on_io_open_complete_context parameter provided in tlsio_open and IO_OPEN_ERROR, and enter TLSIO_STATE_EX_ERROR. ]*/
-	/* Tests_SRS_TLSIO_30_003: [ Tlsio adapter implementations shall define and observe the internally defined TLSIO_OPERATION_TIMEOUT_SECONDS timeout value for opening, closing, and sending processes. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__dowork_open_unhappy_paths__fails)
     {
         int k;
@@ -1078,7 +1051,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             umock_c_reset_all_calls();
 
             umock_c_negative_tests_reset();
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 			if (fails[i])
             {
                 umock_c_negative_tests_fail_call(i);
@@ -1095,7 +1067,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             ///assert
             // A few of the iterations have no failures
             ASSERT_IO_OPEN_CALLBACK(true, fails[i] ? IO_OPEN_ERROR : IO_OPEN_OK);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, fails[i] ? TLSIO_STATE_EXT_ERROR : TLSIO_STATE_EXT_OPEN, 0);
 
             ///cleanup
             tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -1156,7 +1127,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_socket (done)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_READ)
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_open_ssl (waiting SSL_ERROR_WANT_WRITE)
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
+        ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_OK);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio); // dowork_poll_open_ssl (done)
@@ -1165,7 +1136,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // Check that we got the on_open callback
         ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_OK);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 0);
 
         ///cleanup
         tlsio_id->concrete_io_close(tlsio, on_io_close_complete, NULL);
@@ -1180,7 +1150,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         umock_c_reset_all_calls();
         reset_callback_context_records();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
         tlsio_id->concrete_io_dowork(tlsio);
@@ -1188,7 +1157,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_NO_CALLBACKS();
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -1221,7 +1189,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		reset_callback_context_records();
 
 		STRICT_EXPECTED_CALL(dns_async_create(IGNORED_PTR_ARG, NULL));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
 		open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
@@ -1233,7 +1200,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
 		ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 		// Ensure that the callbacks were stored properly in the internal instance
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
 		///cleanup
 		tlsio_id->concrete_io_destroy(tlsio);
@@ -1251,7 +1217,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		reset_callback_context_records();
 
 		STRICT_EXPECTED_CALL(dns_async_create(IGNORED_PTR_ARG, NULL)).SetReturn(NULL);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///act
 		open_result = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
@@ -1262,7 +1227,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		// Should not get a callback
 		ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
 		ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
 		///cleanup
 		tlsio_id->concrete_io_destroy(tlsio);
@@ -1280,7 +1244,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             IO_BYTES_RECEIVED_CONTEXT, on_io_error, IO_ERROR_CONTEXT);
         ASSERT_ARE_EQUAL(int, open_result, 0);
         reset_callback_context_records();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
         ///act
         open_result_2 = tlsio_id->concrete_io_open(tlsio, on_io_open_complete, IO_OPEN_COMPLETE_CONTEXT, on_bytes_received,
@@ -1289,7 +1252,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, open_result_2, 0, "Unexpected 2nd open success");
         ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPENING, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -1326,7 +1288,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             ///arrange
             reset_callback_context_records();
             tlsio = tlsio_id->concrete_io_create(&good_config);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///act
             open_result = tlsio_id->concrete_io_open(p0[i] ? tlsio : NULL, p1[i], IO_OPEN_COMPLETE_CONTEXT, p2[i],
@@ -1335,7 +1296,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             ///assert
             ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, open_result, 0, fm[i]);
             ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_ERROR);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///cleanup
             tlsio_id->concrete_io_destroy(tlsio);
@@ -1351,14 +1311,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         ASSERT_IS_NOT_NULL(tlsio);
         umock_c_reset_all_calls();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
         result = tlsio_id->concrete_io_setoption(tlsio, "fake name", "fake value");
 
         ///assert
         ASSERT_ARE_EQUAL(int, 0, result);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -1393,14 +1351,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
             ///arrange
             CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
             ASSERT_IS_NOT_NULL(tlsio);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///act
             result = tlsio_id->concrete_io_setoption(p0[i] ? tlsio : NULL, p1[i], p2[i]);
 
             ///assert
             ASSERT_ARE_NOT_EQUAL_WITH_MSG(int, 0, result, fm[i]);
-			TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
             ///cleanup
             tlsio_id->concrete_io_destroy(tlsio);
@@ -1430,14 +1386,12 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         ASSERT_IS_NOT_NULL(tlsio);
         umock_c_reset_all_calls();
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
         OPTIONHANDLER_HANDLE result = tlsio_id->concrete_io_retrieveoptions(tlsio);
 
         ///assert
         ASSERT_IS_NULL((void*)result);
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(tlsio);
@@ -1517,7 +1471,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
         ASSERT_IS_NOT_NULL(result);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
-		TLSIO_ASSERT_INTERNAL_STATE(result, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///cleanup
         tlsio_id->concrete_io_destroy(result);
@@ -1563,7 +1516,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
 		STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
 		STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
-		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_OPEN, 2);
 		// End of arrange
 
 		///act
@@ -1587,7 +1539,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         tlsio_id->concrete_io_destroy(NULL);
 
         ///assert
-        // can't really check anything here
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         ///cleanup
 		assert_gballoc_checks();
@@ -1604,7 +1556,6 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));  // copy hostname
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));  // singlylinkedlist_create
         STRICT_EXPECTED_CALL(gballoc_free(IGNORED_NUM_ARG));  // concrete_io struct
-		TLSIO_ASSERT_INTERNAL_STATE(result, TLSIO_STATE_EXT_CLOSED, 0);
 
         ///act
         tlsio_id->concrete_io_destroy(result);

@@ -7,6 +7,7 @@
 #ifndef GBALLOC_UT_IMPL_2_H
 #define GBALLOC_UT_IMPL_2_H
 
+#include <stdbool.h>
 
 // This adds memory checking to the gballoc mocking
 // NOTE: Using ASSERTs wouuld be nice, but this file must preceed their definition
@@ -17,14 +18,15 @@
 #define GBALLOC_UT_IMPL_MAX_ALLOCS 1000
 #endif
 
-void* memory_blocks[GBALLOC_UT_IMPL_MAX_ALLOCS];
+static void* memory_blocks[GBALLOC_UT_IMPL_MAX_ALLOCS];
 static uint32_t memory_block_count;
 
 
 static void init_gballoc_checks()
 {
+    uint32_t i;
 	memory_block_count = 0;
-	for (uint32_t i = 0; i < GBALLOC_UT_IMPL_MAX_ALLOCS; i++)
+	for (i = 0; i < GBALLOC_UT_IMPL_MAX_ALLOCS; i++)
 	{
 		memory_blocks[i] = NULL;
 	}

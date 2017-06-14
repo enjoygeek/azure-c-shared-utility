@@ -7,14 +7,6 @@
 #ifndef CALLBACKS_H
 #define CALLBACKS_H
 
-/////////////////////////////////////////////////////////////////////
-//  Empty functions. These must be available to call, but they have no effect
-int TLSv1_2_client_method() { return 0; }
-void SSL_CTX_set_default_read_buffer_len(SSL_CTX* dummy, int dummy2) { (void)dummy; (void)dummy2; }
-
-// End of empty functions
-/////////////////////////////////////////////////////////////////////
-
 
 #define MAX_MESSAGE_COUNT 3
 
