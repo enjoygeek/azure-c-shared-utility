@@ -478,7 +478,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		assert_gballoc_checks();
 	}
 
-    /* Tests_SSRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+    /* Tests_SRS_TLSIO_30_053: [ If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then tlsio_close_async shall log that tlsio_close_async has been called and then continue normally. ]*/
+    /* Tests_SRS_TLSIO_30_057: [ On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call on_io_open_complete with the on_io_open_complete_context supplied in tlsio_open_async and IO_OPEN_CANCELLED. This callback shall be made before changing the internal state of the adapter. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__close_while_opening__succeeds)
     {
         int open_result;
@@ -546,7 +547,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///assert
 		TLSIO_ASSERT_INTERNAL_STATE(tlsio, TLSIO_STATE_EXT_CLOSED, 0);
 		ASSERT_ARE_EQUAL(int, 0, close_result);
-		ASSERT_IO_OPEN_CALLBACK(false, IO_OPEN_OK);
+		ASSERT_IO_OPEN_CALLBACK(true, IO_OPEN_CANCELLED);
         ASSERT_IO_CLOSE_CALLBACK(true);
 
         ///cleanup
@@ -585,7 +586,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		assert_gballoc_checks();
 	}
 
-	/* Tests_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall return FAILURE. ]*/
+	/* Tests_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall log an error and return FAILURE. ]*/
 	/* Tests_SRS_TLSIO_30_066: [ On failure, on_send_complete shall not be called. ]*/
 	TEST_FUNCTION(tlsio_openssl_compact__send_unhappy_paths__fails)
 	{

@@ -44,6 +44,13 @@ typedef enum TLSIO_STATE_TAG
     TLSIO_STATE_ERROR,
 } TLSIO_STATE;
 
+bool is_an_opening_state(TLSIO_STATE state)
+{
+    return state == TLSIO_STATE_OPENING_WAITING_DNS ||
+        state == TLSIO_STATE_OPENING_WAITING_SOCKET ||
+        state == TLSIO_STATE_OPENING_WAITING_SSL;
+}
+
 // This structure definition is mirrored in the unit tests, so if you change
 // this struct, keep it in sync with the one in tlsio_openssl_compact_ut.c
 typedef struct TLS_IO_INSTANCE_TAG
@@ -406,6 +413,12 @@ static int tlsio_openssl_close_async(CONCRETE_IO_HANDLE tls_io, ON_IO_CLOSE_COMP
                 // LogInfo rather than LogError because this is an unusual but not erroneous situation
                 LogInfo("tlsio_openssl_close has been called when in neither TLSIO_STATE_OPEN nor TLSIO_STATE_ERROR.");
             }
+
+            if (is_an_opening_state(tls_io_instance->tlsio_state))
+            {
+                /* Codes_SRS_TLSIO_30_057: [ On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call on_io_open_complete with the on_io_open_complete_context supplied in tlsio_open_async and IO_OPEN_CANCELLED. This callback shall be made before changing the internal state of the adapter. ]*/
+                tls_io_instance->on_open_complete(tls_io_instance->on_open_complete_context, IO_OPEN_CANCELLED);
+            }
             // This adapter does not support asynchronous closing
             /* Codes_SRS_TLSIO_30_056: [ On success the adapter shall enter TLSIO_STATE_EX_CLOSING. ]*/
             /* Codes_SRS_TLSIO_30_051: [ On success, if the underlying TLS does not support asynchronous closing, then the adapter shall enter TLSIO_STATE_EX_CLOSED immediately after entering TLSIO_STATE_EX_CLOSING. ]*/
@@ -467,7 +480,7 @@ static int tlsio_openssl_send_async(CONCRETE_IO_HANDLE tls_io, const void* buffe
                         PENDING_TRANSMISSION* pending_transmission = (PENDING_TRANSMISSION*)malloc(sizeof(PENDING_TRANSMISSION));
                         if (pending_transmission == NULL)
                         {
-                            /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall return FAILURE. ]*/
+                            /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall log an error and return FAILURE. ]*/
                             result = __FAILURE__;
                             LogError("malloc failed");
                         }
@@ -478,7 +491,7 @@ static int tlsio_openssl_send_async(CONCRETE_IO_HANDLE tls_io, const void* buffe
 
                             if (pending_transmission->bytes == NULL)
                             {
-                                /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall return FAILURE. ]*/
+                                /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall log an error and return FAILURE. ]*/
                                 LogError("malloc failed");
                                 free(pending_transmission);
                                 result = __FAILURE__;
@@ -493,7 +506,7 @@ static int tlsio_openssl_send_async(CONCRETE_IO_HANDLE tls_io, const void* buffe
 
                                 if (singlylinkedlist_add(tls_io_instance->pending_transmission_list, pending_transmission) == NULL)
                                 {
-                                    /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall return FAILURE. ]*/
+                                    /* Codes_SRS_TLSIO_30_064: [ If the supplied message cannot be enqueued for transmission, tlsio_openssl_compact_send shall log an error and return FAILURE. ]*/
                                     LogError("Unable to add socket to pending list.");
                                     free(pending_transmission->bytes);
                                     free(pending_transmission);
