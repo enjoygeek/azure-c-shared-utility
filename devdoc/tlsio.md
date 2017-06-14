@@ -82,14 +82,17 @@ int port;
 ## External State
 The external state of the tlsio adapter is determined by which of the adapter's interface functions have been called and which callbacks have been performed. The adapter's internal state should map cleanly to its external state, but the mapping is not necessarily 1:1. The external states are defined as follows:
 
-* TLSIO_STATE_EXT_CLOSED means either that the module is newly constructed by `tlsio_create`, that the `tlsio_close_async` complete callback has been received, or that the `on_tlsio_open_complete` callback has returned with `IO_OPEN_ERROR` or `IO_OPEN_CANCELLED`.
+* TLSIO_STATE_EXT_CLOSED means either that the module is newly constructed by `tlsio_create`, that the `tlsio_close_async` complete callback has been received, or that the `on_tlsio_open_complete` callback has returned with `IO_OPEN_ERROR`.
 * TLSIO_STATE_EXT_OPENING means that the `tlsio_open_async` call has completed successfully but the `on_tlsio_open_complete` callback has not been performed.
 * TLSIO_STATE_EXT_OPEN means that the `on_tlsio_open_complete` callback has returned with `IO_OPEN_OK`.
-* TLSIO_STATE_EXT_CLOSING means that the `tlsio_close_async` call has completed successfully but the `on_tlsio_close_complete` callback has not been performed.
-* TLSIO_STATE_EXT_ERROR means that `on_io_error` has been called from `tlsio_dowork`
+* TLSIO_STATE_EXT_CLOSING means that either the `tlsio_close_async` call has completed successfully but the `on_tlsio_close_complete` callback has not yet been performed, or that  the `on_tlsio_open_complete` callback has returned with `IO_OPEN_CANCELLED`.
+* TLSIO_STATE_EXT_ERROR means that `on_io_error` has been called from `tlsio_dowork`.
 
 ## State Transitions
 This list shows the effect of the calls as a function of state with happy internal functionality. Unhappy functionality is not shown. The `tlsio_setoption` and `tlsio_getoptions` calls are not shown because they have no effect on state and are always allowed. Calls to `tlsio_send_async` also do not affect state, and are allowed only during TLSIO_STATE_EXT_OPEN.
+
+All transitions into TLSIO_STATE_EXT_CLOSED are understood to pass through TLSIO_STATE_EXT_CLOSING.
+
 
 <table>
   <tr>From state <b>TLSIO_STATE_EXT_CLOSED</b></tr>
@@ -119,7 +122,7 @@ This list shows the effect of the calls as a function of state with happy intern
   </tr>
   <tr>
     <td>tlsio_open_async</td>
-    <td>fail, log error, remain in TLSIO_STATE_EXT_OPENING (see "Usage error policy" below)</td>
+    <td>fail, log error, remain in TLSIO_STATE_EXT_OPENING (usage error)</td>
   </tr>
   <tr>
     <td>tlsio_close_async</td>
@@ -139,7 +142,7 @@ This list shows the effect of the calls as a function of state with happy intern
   </tr>
   <tr>
     <td>tlsio_open_async</td>
-    <td>fail, log error, remain in TLSIO_STATE_EXT_OPEN (see "Usage error policy" below)</td>
+    <td>fail, log error, remain in TLSIO_STATE_EXT_OPEN (usage error)</td>
   </tr>
   <tr>
     <td>tlsio_close_async</td>
@@ -159,7 +162,7 @@ This list shows the effect of the calls as a function of state with happy intern
   </tr>
   <tr>
     <td>tlsio_open_async</td>
-    <td>fail, log error, remain in TLSIO_STATE_EXT_CLOSING (see "Usage error policy" below)</td>
+    <td>fail, log error, remain in TLSIO_STATE_EXT_CLOSING (usage error)</td>
   </tr>
   <tr>
     <td>tlsio_close_async</td>
@@ -179,7 +182,7 @@ This list shows the effect of the calls as a function of state with happy intern
   </tr>
   <tr>
     <td>tlsio_open_async</td>
-    <td>fail, log error, remain in TLSIO_STATE_EXT_ERROR (see "Usage error policy" below)</td>
+    <td>fail, log error, remain in TLSIO_STATE_EXT_ERROR (usage error)</td>
   </tr>
   <tr>
     <td>tlsio_close_async</td>
@@ -192,11 +195,6 @@ This list shows the effect of the calls as a function of state with happy intern
 </table>
 
 ![State transition diagram](img/tlsio_state_diagram.png)
-
-**Marcos**: I was trying to declutter the diagram, and can't decide which version is better (roy)
-
-
-![State transition diagram](img/tlsio_state_diagram2.png)
 
 ## Definitions 
 
@@ -321,6 +319,8 @@ int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle,
 
 **SRS_TLSIO_30_053: [** If the adapter is in any state other than TLSIO_STATE_EXT_OPEN or TLSIO_STATE_EXT_ERROR then `tlsio_close_async` shall log that `tlsio_close_async` has been called and then continue normally. **]**
 
+**SRS_TLSIO_30_052: [** On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call `on_io_open_complete` with the `on_io_open_complete_context` supplied in `tlsio_open_async` and `IO_OPEN_CANCELLED`. This callback shall be made before changing the internal state of the adapter. **]**
+
 **SRS_TLSIO_30_056: [** On success the adapter shall [enter TLSIO_STATE_EX_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`."). **]**
 
 **SRS_TLSIO_30_051: [** On success, if the underlying TLS does not support asynchronous closing or if the adapter is not in TLSIO_STATE_EXT_OPEN, then the adapter shall [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`.") immediately after entering TLSIO_STATE_EX_CLOSING. **]**
@@ -345,7 +345,7 @@ int tlsio_send_async(CONCRETE_IO_HANDLE tlsio_handle, const void* buffer,
 
 **SRS_TLSIO_30_065: [** If the adapter state is not TLSIO_STATE_EXT_OPEN, `tlsio_send_async` shall log an error and return `_FAILURE_`. **]**
 
-**SRS_TLSIO_30_064: [** If the supplied message cannot be enqueued for transmission, `tlsio_send_async` shall return `_FAILURE_`. **]**
+**SRS_TLSIO_30_064: [** If the supplied message cannot be enqueued for transmission, `tlsio_send_async` shall log an error and return `_FAILURE_`. **]**
 
 **SRS_TLSIO_30_066: [** On failure, `on_send_complete` shall not be called. **]**
 
