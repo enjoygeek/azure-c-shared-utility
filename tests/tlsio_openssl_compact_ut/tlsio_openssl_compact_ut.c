@@ -1009,9 +1009,9 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     {
         int k;
         bool fails[100];
+        size_t i;
         ///arrange
         k = 0;
-        size_t i;
         use_negative_mocks();
 
         // dowork_poll_dns (waiting)
