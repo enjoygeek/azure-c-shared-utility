@@ -226,8 +226,6 @@ static void tlsio_openssl_destroy(CONCRETE_IO_HANDLE tls_io)
 /* Codes_SRS_TLSIO_30_010: [ The tlsio_create shall allocate and initialize all necessary resources and return an instance of the tlsio_openssl_compact. ]*/
 static CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
 {
-    /* Codes_SRS_TLSIO_30_012: [ The tlsio_create shall receive the connection configuration as a TLSIO_CONFIG* in io_create_parameters. ]*/
-    TLSIO_CONFIG* tls_io_config = (TLSIO_CONFIG*)io_create_parameters;
     TLS_IO_INSTANCE* result;
 
     if (io_create_parameters == NULL)
@@ -238,6 +236,8 @@ static CONCRETE_IO_HANDLE tlsio_openssl_create(void* io_create_parameters)
     }
     else
     {
+        /* Codes_SRS_TLSIO_30_012: [ The tlsio_create shall receive the connection configuration as a TLSIO_CONFIG* in io_create_parameters. ]*/
+        TLSIO_CONFIG* tls_io_config = (TLSIO_CONFIG*)io_create_parameters;
         if (tls_io_config->hostname == NULL)
         {
             /* Codes_SRS_TLSIO_30_014: [ If the hostname member of io_create_parameters value is NULL, tlsio_create shall log an error and return NULL. ]*/

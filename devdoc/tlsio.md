@@ -268,7 +268,7 @@ void tlsio_destroy(CONCRETE_IO_HANDLE tlsio_handle);
 
 **SRS_TLSIO_30_021: [** The `tlsio_destroy` shall release all allocated resources and then release `tlsio_handle`. **]**
 
-**SRS_TLSIO_30_022: [** If the adapter is in any state other than TLSIO_STATE_EX_CLOSED when `tlsio_destroy` is called, the adapter shall [enter TLSIO_STATE_EX_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`.") and then [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`.") before completing the destroy process. **]**
+**SRS_TLSIO_30_022: [** If the adapter is in any state other than TLSIO_STATE_EXT_CLOSED when `tlsio_destroy` is called, the adapter shall [enter TLSIO_STATE_EXT_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`.") and then [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`.") before completing the destroy process. **]**
 
 
 ###   tlsio_open_async
@@ -295,13 +295,13 @@ int tlsio_open_async(
 
 **SRS_TLSIO_30_037: [** If the adapter is in any state other than TLSIO_STATE_EXT_CLOSED when `tlsio_open_async` is called, it shall log an error, and return `_FAILURE_`. **]**
 
-**SRS_TLSIO_30_038: [** If `tlsio_open_async` fails to  [enter TLSIO_STATE_EX_OPENING](#enter-TLSIO_STATE_EXT_OPENING "Continute the process of opening the TSL connection to the host on the next `tlsio_dowork` call") it shall return `_FAILURE_`. **]**
+**SRS_TLSIO_30_038: [** If `tlsio_open_async` fails to  [enter TLSIO_STATE_EXT_OPENING](#enter-TLSIO_STATE_EXT_OPENING "Continute the process of opening the TSL connection to the host on the next `tlsio_dowork` call") it shall return `_FAILURE_`. **]**
 
 **SRS_TLSIO_30_039: [** On failure, `tlsio_open_async` shall not call `on_io_open_complete`. **]**
 
 **SRS_TLSIO_30_034: [** On success, `tlsio_open_async` shall store the provided `on_bytes_received`,  `on_bytes_received_context`, `on_io_error`, `on_io_error_context`, `on_io_open_complete`,  and `on_io_open_complete_context` parameters for later use as specified and tested per other line entries in this document. **]**
 
-**SRS_TLSIO_30_035: [** On success, `tlsio_open_async` shall cause the adapter to [enter TLSIO_STATE_EX_OPENING](#enter-TLSIO_STATE_EXT_OPENING "Continute the process of opening the TSL connection to the host on the next `tlsio_dowork` call") and return 0. **]**
+**SRS_TLSIO_30_035: [** On success, `tlsio_open_async` shall cause the adapter to [enter TLSIO_STATE_EXT_OPENING](#enter-TLSIO_STATE_EXT_OPENING "Continute the process of opening the TSL connection to the host on the next `tlsio_dowork` call") and return 0. **]**
 
 
 ###   tlsio_close_async
@@ -321,9 +321,9 @@ int tlsio_close_async(CONCRETE_IO_HANDLE tlsio_handle,
 
 **SRS_TLSIO_30_057: [** On success, if the adapter is in TLSIO_STATE_EXT_OPENING, it shall call `on_io_open_complete` with the `on_io_open_complete_context` supplied in `tlsio_open_async` and `IO_OPEN_CANCELLED`. This callback shall be made before changing the internal state of the adapter. **]**
 
-**SRS_TLSIO_30_056: [** On success the adapter shall [enter TLSIO_STATE_EX_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`."). **]**
+**SRS_TLSIO_30_056: [** On success the adapter shall [enter TLSIO_STATE_EXT_CLOSING](#enter-TLSIO_STATE_EXT_CLOSING "Iterate through any unsent messages in the queue and delete each message after calling its `on_send_complete` with the associated `callback_context` and `IO_SEND_CANCELLED`."). **]**
 
-**SRS_TLSIO_30_051: [** On success, if the underlying TLS does not support asynchronous closing or if the adapter is not in TLSIO_STATE_EXT_OPEN, then the adapter shall [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`.") immediately after entering TLSIO_STATE_EX_CLOSING. **]**
+**SRS_TLSIO_30_051: [** On success, if the underlying TLS does not support asynchronous closing or if the adapter is not in TLSIO_STATE_EXT_OPEN, then the adapter shall [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`.") immediately after entering TLSIO_STATE_EXT_CLOSING. **]**
 
 **SRS_TLSIO_30_052: [** On success `tlsio_close_async` shall return 0. **]**
 
@@ -382,7 +382,7 @@ Transitioning from TLSIO_STATE_EXT_OPENING to TLSIO_STATE_EXT_OPEN may require m
 
 **SRS_TLSIO_30_082: [** If the connection process fails for any reason, `tlsio_dowork`  shall log an error, call `on_io_open_complete` with the `on_io_open_complete_context` parameter provided in `tlsio_open_async` and `IO_OPEN_ERROR`, and [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`."). **]**
 
-**SRS_TLSIO_30_083: [** If `tlsio_dowork` successfully opens the TLS connection it shall [enter TLSIO_STATE_EX_OPEN](#enter-TLSIO_STATE_EXT_OPEN "Call the `on_io_open_complete` function and pass IO_OPEN_OK and the `on_io_open_complete_context` that was supplied in `tlsio_open_async`."). **]**
+**SRS_TLSIO_30_083: [** If `tlsio_dowork` successfully opens the TLS connection it shall [enter TLSIO_STATE_EXT_OPEN](#enter-TLSIO_STATE_EXT_OPEN "Call the `on_io_open_complete` function and pass IO_OPEN_OK and the `on_io_open_complete_context` that was supplied in `tlsio_open_async`."). **]**
 
 #### Data transmission behaviors
 
@@ -390,7 +390,7 @@ Transitioning from TLSIO_STATE_EXT_OPENING to TLSIO_STATE_EXT_OPEN may require m
 
 **SRS_TLSIO_30_093: [** If the TLS connection was not able to send an entire enqueued message at once, subsequent calls to `tlsio_dowork` shall continue to send the remaining bytes. **]**
 
-**SRS_TLSIO_30_095: [** If the send process fails before sending all of the bytes in an enqueued message, `tlsio_dowork` shall [destroy the failed message](#destroy-the-failed-message "Remove the message from the queue and destroy it after calling the message's `on_send_complete` along with its associated `callback_context` and `IO_SEND_ERROR`.") and [enter TLSIO_STATE_EX_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
+**SRS_TLSIO_30_095: [** If the send process fails before sending all of the bytes in an enqueued message, `tlsio_dowork` shall [destroy the failed message](#destroy-the-failed-message "Remove the message from the queue and destroy it after calling the message's `on_send_complete` along with its associated `callback_context` and `IO_SEND_ERROR`.") and [enter TLSIO_STATE_EXT_ERROR](#enter-TLSIO_STATE_EXT_ERROR "Call the `on_io_error` function and pass the `on_io_error_context` that was supplied in `tlsio_open_async`."). **]**
 
 **SRS_TLSIO_30_096: [** If there are no enqueued messages available, `tlsio_dowork` shall do nothing. **]**
 
@@ -409,7 +409,7 @@ Adapters whose underlying TLS connection does not have an asynchronous 'closing'
 **SRS_TLSIO_30_107: [** If the closing process ends gracefully, `tlsio_dowork` shall [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`."). **]**
 
 ###   tlsio_setoption
-Implementation of `IO_SETOPTION concrete_io_setoption`
+Implementation of `IO_SETOPTION concrete_io_setoption`. Specific tlsio implementations must define the behavior of successful `tlsio_setoption` calls.
 
 The options are conceptually part of `tlsio_create` in that options which are set persist until the instance is destroyed. 
 ```c
@@ -423,21 +423,17 @@ int tlsio_setoption(CONCRETE_IO_HANDLE tlsio_handle, const char* optionName, con
 
 **SRS_TLSIO_30_123 [** The `tlsio_setoption` shall do nothing and return 0. **]**
 
-**SRS_TLSIO_30_123 [** The `tlsio_setoption` shall do nothing and return 0. **]**
-
 **SRS_TLSIO_30_124 [** Adapters which implement options shall store the option value until `tlsio_destroy` is called. **]**
 
 
 ###   tlsio_retrieveoptions
-Implementation of `IO_RETRIEVEOPTIONS concrete_io_retrieveoptions`
+Implementation of `IO_RETRIEVEOPTIONS concrete_io_retrieveoptions` Specific tlsio implementations must define the behavior of successful `tlsio_retrieveoptions` calls.
 
 ```c
 OPTIONHANDLER_HANDLE tlsio_retrieveoptions(CONCRETE_IO_HANDLE tlsio_handle);
 ```
 
 **SRS_TLSIO_30_160: [** If the `tlsio_handle` parameter is NULL, `tlsio_retrieveoptions` shall do nothing except log an error and return `_FAILURE_`. **]**
-
-**SRS_TLSIO_30_161: [** The `tlsio_retrieveoptions` shall do nothing and return NULL. **]**
 
 ### Error Recovery Testing
 Error recovery for tlsio adapters is performed by the higher level modules that own the tlsio. There are a very large
@@ -459,8 +455,7 @@ The words "high-level retry sequence" as used in this section means that:
 Note that the requirements in this section have corresponding entries in the unit test files, but do not
 appear in the implementation code.
 
-**SRS_TLSIO_30_200: [** The "high-level retry sequence" shall succeed after an injected fault which causes 
-`on_io_open_complete` to return with `IO_OPEN_ERROR`. **]**
+**SRS_TLSIO_30_200: [** The "high-level retry sequence" shall succeed after an injected fault which causes `on_io_open_complete` to return with `IO_OPEN_ERROR`. **]**
 
 **SRS_TLSIO_30_201: [** The "high-level retry sequence" shall succeed after an injected fault which causes 
  `on_io_error` to be called. **]**
