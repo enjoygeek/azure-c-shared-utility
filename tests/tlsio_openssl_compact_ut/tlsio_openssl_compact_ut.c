@@ -1010,10 +1010,9 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         int k;
         bool fails[100];
         ///arrange
-        use_negative_mocks();
-
         k = 0;
         size_t i;
+        use_negative_mocks();
 
         // dowork_poll_dns (waiting)
         fails[k++] = false; STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE)).SetReturn(false);
@@ -1435,6 +1434,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_30_011: [ If any resource allocation fails, tlsio_create shall return NULL. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__create_unhappy_paths__fails)
     {
+        size_t i;
         ///arrange
         use_negative_mocks();
 
@@ -1443,7 +1443,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // singlylinkedlist_create
         umock_c_negative_tests_snapshot();
 
-        for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
+        for (i = 0; i < umock_c_negative_tests_call_count(); i++)
         {
             CONCRETE_IO_HANDLE result;
             umock_c_negative_tests_reset();
