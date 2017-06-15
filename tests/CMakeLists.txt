@@ -4,9 +4,6 @@
 #this is CMakeLists.txt for the folder tests of C shared utility
 set(SHARED_UTIL_REAL_TEST_FOLDER ${CMAKE_CURRENT_LIST_DIR}/real_test_files CACHE INTERNAL "this is what needs to be included when doing test sources" FORCE)
 
-#this causes tlsio adapters to compile internal state verification
-add_definitions(-DTLSIO_STATE_VERIFICATION_ENABLE)
-
 add_subdirectory(agenttime_ut)
 add_subdirectory(base64_ut)
 add_subdirectory(buffer_ut)

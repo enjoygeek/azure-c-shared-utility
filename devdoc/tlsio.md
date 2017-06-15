@@ -421,8 +421,6 @@ int tlsio_setoption(CONCRETE_IO_HANDLE tlsio_handle, const char* optionName, con
 
 **SRS_TLSIO_30_122: [** If the `value` parameter is NULL, `tlsio_setoption` shall do nothing except log an error and return `_FAILURE_`. **]**
 
-**SRS_TLSIO_30_123 [** The `tlsio_setoption` shall do nothing and return 0. **]**
-
 **SRS_TLSIO_30_124 [** Adapters which implement options shall store the option value until `tlsio_destroy` is called. **]**
 
 
