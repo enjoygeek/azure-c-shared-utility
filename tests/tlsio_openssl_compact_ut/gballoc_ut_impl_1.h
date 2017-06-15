@@ -26,8 +26,9 @@ static void* my_gballoc_malloc(size_t size)
 
 static void* my_gballoc_realloc(void* ptr, size_t size)
 {
+    void* result;
 	remove_gballoc_memory_block(ptr);
-	void* result = realloc(ptr, size);
+	result = realloc(ptr, size);
 	add_gballoc_memory_block(result);
 	return result;
 }

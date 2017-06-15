@@ -315,21 +315,22 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     TEST_FUNCTION(tlsio_openssl_compact__close_parameter_validation__fails)
     {
         int k;
+        bool p0[CLOSE_PV_COUNT];
+        ON_IO_CLOSE_COMPLETE p1[CLOSE_PV_COUNT];
+        const char* fm[CLOSE_PV_COUNT];
+        int i;
+
         ///arrange
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
 
         umock_c_reset_all_calls();
-
-        bool p0[CLOSE_PV_COUNT];
-        ON_IO_CLOSE_COMPLETE p1[CLOSE_PV_COUNT];
-        const char* fm[CLOSE_PV_COUNT];
 
         k = 0;
         p0[k] = false; p1[k] = on_io_close_complete; fm[k] = "Unexpected close success when tlsio_handle is NULL"; /* */  k++;
         p0[k] = true; p1[k] = NULL; /*           */ fm[k] = "Unexpected close success when on_io_close_complete is NULL"; k++;
 
         // Cycle through each failing combo of parameters
-        for (int i = 0; i < CLOSE_PV_COUNT; i++)
+        for (i = 0; i < CLOSE_PV_COUNT; i++)
         {
             int close_result;
             reset_callback_context_records();

@@ -93,12 +93,13 @@ static void enter_open_error_state(TLS_IO_INSTANCE* tls_io_instance)
 static bool process_and_destroy_head_message(TLS_IO_INSTANCE* tls_io_instance, IO_SEND_RESULT send_result)
 {
     bool result;
+    LIST_ITEM_HANDLE head_pending_io;
     if (send_result == IO_SEND_ERROR)
     {
         /* Codes_SRS_TLSIO_30_095: [ If the send process fails before sending all of the bytes in an enqueued message, the tlsio_dowork shall call the message's on_send_complete along with its associated callback_context and IO_SEND_ERROR. ]*/
         enter_tlsio_error_state(tls_io_instance);
     }
-    LIST_ITEM_HANDLE head_pending_io = singlylinkedlist_get_head_item(tls_io_instance->pending_transmission_list);
+    head_pending_io = singlylinkedlist_get_head_item(tls_io_instance->pending_transmission_list);
     if (head_pending_io != NULL)
     {
         PENDING_TRANSMISSION* head_message = (PENDING_TRANSMISSION*)singlylinkedlist_item_get_value(head_pending_io);

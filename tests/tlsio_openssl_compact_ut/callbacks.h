@@ -37,6 +37,7 @@ static bool on_bytes_received_context_ok;
 
 static void reset_callback_context_records()
 {
+    int i;
     on_io_open_complete_call_count = 0;
     on_io_open_complete_context_ok = true;
     on_io_open_complete_result = (IO_OPEN_RESULT)-1;
@@ -46,7 +47,7 @@ static void reset_callback_context_records()
     on_io_close_context_ok = true;
     on_io_send_complete_call_count = 0;
     on_io_send_complete_context_ok = true;
-    for (int i = 0; i < MAX_MESSAGE_COUNT; i++)
+    for (i = 0; i < MAX_MESSAGE_COUNT; i++)
     {
         on_io_send_complete_result[i] = (IO_SEND_RESULT)-1;
     }
@@ -89,9 +90,10 @@ static void on_io_close_complete(void* context)
 
 static void on_bytes_received(void* context, const unsigned char* buffer, size_t size)
 {
+    size_t i;
     on_bytes_received_call_count++;
 
-    for (size_t i = 0; i < size; i++)
+    for (i = 0; i < size; i++)
     {
         ASSERT_BYTE_RECEIVED(buffer[i]);
     }
@@ -150,9 +152,10 @@ static void ASSERT_IO_SEND_CALLBACK(bool called, int send_result)
 
 static void ASSERT_IO_SEND_ABANDONED(int count)
 {
+    int i;
     ASSERT_ARE_EQUAL_WITH_MSG(int, count, on_io_send_complete_call_count, "on_io_send_complete_callback count mismatch");
     ASSERT_IS_TRUE_WITH_MSG(on_io_send_complete_context_ok, "io_send_complete_context not passed");
-    for (int i = 0; i < on_io_send_complete_call_count; i++)
+    for (i = 0; i < on_io_send_complete_call_count; i++)
     {
         ASSERT_ARE_EQUAL_WITH_MSG(int, IO_SEND_CANCELLED, on_io_send_complete_result[i], "send result should be IO_SEND_CANCELLED");
     }

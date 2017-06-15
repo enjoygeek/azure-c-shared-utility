@@ -53,7 +53,8 @@ static void remove_gballoc_memory_block(void* block)
 	if (block != NULL)
 	{
 		bool found = false;
-		for (uint32_t i = 0; i < memory_block_count; i++)
+        uint32_t i;
+		for (i = 0; i < memory_block_count; i++)
 		{
 			if (memory_blocks[i] == block)
 			{
@@ -71,7 +72,8 @@ static void remove_gballoc_memory_block(void* block)
 
 static void assert_gballoc_checks()
 {
-	for (uint32_t i = 0; i < memory_block_count; i++)
+    uint32_t i;
+	for (i = 0; i < memory_block_count; i++)
 	{
 		if (memory_blocks[i] != NULL)
 		{
