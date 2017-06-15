@@ -356,8 +356,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///arrange
         int send_result;
         int close_result;
-        reset_callback_context_records();
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
+        reset_callback_context_records();
         open_helper(tlsio);
 
         // Make sure the arrangement is correct
@@ -473,7 +473,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     TEST_FUNCTION(tlsio_openssl_compact__close_while_opening__succeeds)
     {
         int open_result;
-        CONCRETE_IO_HANDLE tlsio;
+        CONCRETE_IO_HANDLE tlsio; 
+        int close_result;
         ///arrange
         reset_callback_context_records();
         tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -530,7 +531,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         // End of arrange
 
         ///act
-        int close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
+        close_result = tlsio_id->concrete_io_close(tlsio, on_io_close_complete, IO_CLOSE_COMPLETE_CONTEXT);
 
         ///assert
 		ASSERT_ARE_EQUAL(int, 0, close_result);
@@ -575,6 +576,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 	TEST_FUNCTION(tlsio_openssl_compact__send_unhappy_paths__fails)
 	{
 		///arrange
+        size_t i;
 		use_negative_mocks();
 
 		STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // PENDING_TRANSMISSION
@@ -582,7 +584,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		STRICT_EXPECTED_CALL(gballoc_malloc(IGNORED_NUM_ARG));  // singlylinkedlist_add
 		umock_c_negative_tests_snapshot();
 
-		for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
+		for (i = 0; i < umock_c_negative_tests_call_count(); i++)
 		{
             int send_result;
 			///arrange
@@ -626,6 +628,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		ON_SEND_COMPLETE p3[SEND_PV_COUNT];
 		const char* fm[SEND_PV_COUNT];
         int k;
+        int i;
 
 		///arrange
 		CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
@@ -638,7 +641,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 		p0[k] = true; p1[k] = SSL_send_buffer; p2[k] = SSL_send_message_size; p3[k] = NULL; /*           */ fm[k] = "Unexpected send success when on_send_complete is NULL"; k++;
 
 		// Cycle through each failing combo of parameters
-		for (int i = 0; i < SEND_PV_COUNT; i++)
+		for (i = 0; i < SEND_PV_COUNT; i++)
 		{
             int send_result;
 			///arrange
@@ -1010,7 +1013,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         use_negative_mocks();
 
         k = 0;
-
+        size_t i;
 
         // dowork_poll_dns (waiting)
         fails[k++] = false; STRICT_EXPECTED_CALL(dns_async_is_lookup_complete(GOOD_DNS_ASYNC_HANDLE)).SetReturn(false);
@@ -1039,7 +1042,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
         umock_c_negative_tests_snapshot();
 
-        for (size_t i = 0; i < umock_c_negative_tests_call_count(); i++)
+        for (i = 0; i < umock_c_negative_tests_call_count(); i++)
         {
             CONCRETE_IO_HANDLE tlsio;
             int open_result;
@@ -1273,7 +1276,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ON_IO_OPEN_COMPLETE p1[OPEN_PV_COUNT];
         ON_BYTES_RECEIVED p2[OPEN_PV_COUNT];
         ON_IO_ERROR p3[OPEN_PV_COUNT];
-        const char* fm[OPEN_PV_COUNT];
+        const char* fm[OPEN_PV_COUNT]; 
+        int i;
 
         int k = 0;
         p0[k] = false; p1[k] = on_io_open_complete; p2[k] = on_bytes_received; p3[k] = on_io_error; fm[k] = "Unexpected open success when tlsio_handle is NULL"; /* */  k++;
@@ -1282,7 +1286,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         p0[k] = true; p1[k] = on_io_open_complete; p2[k] = on_bytes_received;  p3[k] = NULL; /*  */ fm[k] = "Unexpected open success when on_io_error is NULL"; /*   */ k++;
 
         // Cycle through each failing combo of parameters
-        for (int i = 0; i < OPEN_PV_COUNT; i++)
+        for (i = 0; i < OPEN_PV_COUNT; i++)
         {
             CONCRETE_IO_HANDLE tlsio;
             int open_result;
@@ -1334,7 +1338,8 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         bool p0[SETOPTION_PV_COUNT];
         const char* p1[SETOPTION_PV_COUNT];
         const char*  p2[SETOPTION_PV_COUNT];
-        const char* fm[SETOPTION_PV_COUNT];
+        const char* fm[SETOPTION_PV_COUNT]; 
+        int i;
 
         ///arrange
         umock_c_reset_all_calls();
@@ -1346,7 +1351,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
 
 
         // Cycle through each failing combo of parameters
-        for (int i = 0; i < SETOPTION_PV_COUNT; i++)
+        for (i = 0; i < SETOPTION_PV_COUNT; i++)
         {
             int result;
             ///arrange
@@ -1383,13 +1388,14 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
     /* Tests_SRS_TLSIO_OPENSSL_COMPACT_30_560: [ The  tlsio_retrieveoptions  shall do nothing and return NULL. ]*/
     TEST_FUNCTION(tlsio_openssl_compact__retrieveoptions__fails)
     {
+        OPTIONHANDLER_HANDLE result;
         ///arrange
         CONCRETE_IO_HANDLE tlsio = tlsio_id->concrete_io_create(&good_config);
         ASSERT_IS_NOT_NULL(tlsio);
         umock_c_reset_all_calls();
 
         ///act
-        OPTIONHANDLER_HANDLE result = tlsio_id->concrete_io_retrieveoptions(tlsio);
+        result = tlsio_id->concrete_io_retrieveoptions(tlsio);
 
         ///assert
         ASSERT_IS_NULL((void*)result);
@@ -1407,6 +1413,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         ///arrange
         TLSIO_CONFIG config[4];
         create_parameters_t p[4];
+        int i;
         //                               config       hostname            port number                failure message
         populate_create_parameters(p + 0, NULL, /* */ SSL_good_host_name, SSL_good_port_number, "Should fail with NULL config");
         populate_create_parameters(p + 1, config + 1, NULL, /*         */ SSL_good_port_number, "Should fail with NULL hostname");
@@ -1414,7 +1421,7 @@ BEGIN_TEST_SUITE(tlsio_openssl_compact_unittests)
         populate_create_parameters(p + 3, config + 3, SSL_good_host_name, SSL_port_number_too_high, "Should fail with port number too high");
 
         // Cycle through each failing combo of parameters
-        for (int i = 0; i < sizeof(config) / sizeof(TLSIO_CONFIG); i++)
+        for (i = 0; i < sizeof(config) / sizeof(TLSIO_CONFIG); i++)
         {
             ///act
             CONCRETE_IO_HANDLE result = tlsio_id->concrete_io_create(p[i].config);

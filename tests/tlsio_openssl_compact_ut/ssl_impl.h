@@ -83,12 +83,13 @@ static void ASSERT_BYTE_RECEIVED(uint8_t byte)
 
 int my_SSL_read(SSL* ssl, uint8_t* buffer, size_t size)
 {
-    (void)size;
     size_t bytes_to_receive;
+    size_t i;
+    (void)size;
     ASSERT_ARE_EQUAL(size_t, (size_t)ssl, (size_t)SSL_Good_Ptr);
     bytes_to_receive = fake_read_byte_out_count - fake_read_current_byte_out_count;
     bytes_to_receive = bytes_to_receive <= size ? bytes_to_receive : size;
-    for (size_t i = 0; i < bytes_to_receive; i++)
+    for (i = 0; i < bytes_to_receive; i++)
     {
         buffer[i] = (uint8_t)(fake_read_current_byte_out_count % 256);
         fake_read_current_byte_out_count++;
@@ -98,9 +99,9 @@ int my_SSL_read(SSL* ssl, uint8_t* buffer, size_t size)
 
 int my_SSL_write(SSL* ssl, uint8_t* buffer, size_t size)
 {
+    int result;
     // "Send" no more than SSL_WRITE_MAX_TEST_SIZE bytes
     (void)buffer; // not used
-    int result;
     ASSERT_ARE_EQUAL(size_t, (size_t)ssl, (size_t)SSL_Good_Ptr);
     if (size == SSL_FAIL_ME_SENT_MESSAGE_SIZE)
     {
