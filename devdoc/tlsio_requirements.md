@@ -409,7 +409,7 @@ Adapters whose underlying TLS connection does not have an asynchronous 'closing'
 **SRS_TLSIO_30_107: [** If the closing process ends gracefully, `tlsio_dowork` shall [enter TLSIO_STATE_EXT_CLOSED](#enter-TLSIO_STATE_EXT_CLOSED "Forcibly close any existing connections then call the `on_io_close_complete` function and pass the `on_io_close_complete_context` that was supplied in `tlsio_close_async`."). **]**
 
 ###   tlsio_setoption
-Implementation of `IO_SETOPTION concrete_io_setoption`. Specific tlsio implementations must define the behavior of successful `tlsio_setoption` calls.
+Implementation of `concrete_io_setoption`. Specific tlsio implementations must define the behavior of successful `tlsio_setoption` calls.
 
 The options are conceptually part of `tlsio_create` in that options which are set persist until the instance is destroyed. 
 ```c
@@ -425,7 +425,7 @@ int tlsio_setoption(CONCRETE_IO_HANDLE tlsio_handle, const char* optionName, con
 
 
 ###   tlsio_retrieveoptions
-Implementation of `IO_RETRIEVEOPTIONS concrete_io_retrieveoptions` Specific tlsio implementations must define the behavior of successful `tlsio_retrieveoptions` calls.
+Implementation of `concrete_io_retrieveoptions` Specific tlsio implementations must define the behavior of successful `tlsio_retrieveoptions` calls.
 
 ```c
 OPTIONHANDLER_HANDLE tlsio_retrieveoptions(CONCRETE_IO_HANDLE tlsio_handle);
